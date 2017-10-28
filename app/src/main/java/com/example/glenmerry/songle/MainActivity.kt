@@ -4,9 +4,9 @@ import android.content.*
 import android.net.ConnectivityManager
 import android.os.AsyncTask
 import android.os.Bundle
+import android.os.Parcelable
 import android.support.design.widget.Snackbar
 import android.support.v7.app.AppCompatActivity
-import android.text.Html
 import android.util.Xml
 import kotlinx.android.synthetic.main.content_main.*
 import org.jetbrains.anko.selector
@@ -17,24 +17,53 @@ import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import android.os.Parcel
 
+data class Song(val number: String, val artist: String, val title: String, val link: String) : Parcelable {
+
+    constructor(source: Parcel): this(source.readString(), source.readString(), source.readString(), source.readString())
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    override fun writeToParcel(dest: Parcel?, flags: Int) {
+        dest?.writeString(this.number)
+        dest?.writeString(this.artist)
+        dest?.writeString(this.title)
+        dest?.writeString(this.link)
+    }
+
+    companion object {
+        @JvmField final val CREATOR: Parcelable.Creator<Song> = object : Parcelable.Creator<Song> {
+            override fun createFromParcel(source: Parcel): Song{
+                return Song(source)
+            }
+            override fun newArray(size: Int): Array<Song?> {
+                return arrayOfNulls(size)
+            }
+        }
+    }
+}
 var songs = listOf<Song>()
+val songsFound: ArrayList<Song> = ArrayList()
 
 class MainActivity : AppCompatActivity() {
 
     // The BroadcastReceiver that tracks network connectivity changes.
     private var receiver = NetworkReceiver()
     private var connectionLost = false
-    private var selectedDifficulty: String? = null
+    private var selectedDifficulty: Int? = null
     private val difficulties = listOf("Beginner", "Easy", "Medium", "Hard", "Impossible")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-       // setSupportActionBar(toolbar)
-        var distWalked = 0
-        var distWalkedUnit = "m"
+
+        val distWalked = 1.2
+        val distWalkedUnit = "km"
         textViewDistance.text = "You have walked $distWalked$distWalkedUnit while playing Songle!"
+
 
         // Register BroadcastReceiver to track connection changes.
         val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
@@ -43,25 +72,37 @@ class MainActivity : AppCompatActivity() {
         buttonPlay.setOnClickListener {
             if (selectedDifficulty != null) {
                 val intent = Intent(this, MapsActivity::class.java)
-                intent.putExtra("DIFFICULTY", selectedDifficulty)
+                intent.putExtra("DIFFICULTY", selectedDifficulty!!)
+                intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
+                intent.putParcelableArrayListExtra("SONGSFOUND", songsFound)
                 startActivity(intent)
             } else {
-                selector("Please select a difficulty", difficulties, { dialogInterface, i ->
-                    selectedDifficulty = difficulties[i]
-                    textViewShowDiff.text = "Current Difficulty: $selectedDifficulty"
+                selector("Please select a difficulty", difficulties, { _, i ->
+                    selectedDifficulty = (5-i)
+                    textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
                 })
             }
         }
 
         buttonSelectDifficulty.setOnClickListener {
-            selector("Please select a difficulty", difficulties, { dialogInterface, i ->
-                selectedDifficulty = difficulties[i]
-                textViewShowDiff.text = "Current Difficulty: $selectedDifficulty"
+            selector("Please select a difficulty", difficulties, { _, i ->
+                selectedDifficulty = (5-i)
+                textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
             })
         }
 
         DownloadXmlTask().execute("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
+
+        buttonSongsFound.setOnClickListener {
+
+            val intent = Intent(this, SongsFoundActivity::class.java)
+            intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
+            intent.putParcelableArrayListExtra("SONGSFOUND", songsFound)
+            startActivity(intent)
+        }
     }
+
+
 
     private inner class NetworkReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -88,10 +129,10 @@ class MainActivity : AppCompatActivity() {
 }
 
 interface DownloadCompleteListener {
-    fun downloadComplete(result: String)
+    fun downloadComplete()
 }
 
-class DownloadXmlTask : AsyncTask<String, Void, String>() {
+class DownloadXmlTask : AsyncTask<String, Void, String>(){
 
     override fun doInBackground(vararg urls: String): String {
         return try {
@@ -135,10 +176,11 @@ class DownloadXmlTask : AsyncTask<String, Void, String>() {
         for (song in songs) {
             println(song)
         }
+        for (i in 0..8) {
+            songsFound.add(songs[i])
+        }
     }
 }
-
-data class Song(val number: String, val artist: String, val title: String, val link: String)
 
 class SongListXMLParser {
     // We don't use namespaces
