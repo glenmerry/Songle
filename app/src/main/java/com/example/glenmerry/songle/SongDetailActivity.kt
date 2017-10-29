@@ -5,23 +5,18 @@ import android.os.Bundle
 import kotlinx.android.synthetic.main.activity_song_detail.*
 import android.content.Intent
 import android.net.Uri
-import android.os.AsyncTask
+import android.text.Html
 import android.text.method.ScrollingMovementMethod
 import android.view.Menu
 import android.view.MenuItem
-import com.example.glenmerry.songle.R.id.textViewLyrics
-import org.xmlpull.v1.XmlPullParserException
-import java.io.IOException
-import java.io.InputStream
-import java.net.HttpURLConnection
 import java.net.URL
-import java.nio.charset.Charset
-import org.jetbrains.anko.Android
 import org.jetbrains.anko.activityUiThread
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
 
 class SongDetailActivity : AppCompatActivity() {
+
+    lateinit var song: Song
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_song_detail, menu)
@@ -34,7 +29,9 @@ class SongDetailActivity : AppCompatActivity() {
             return true
         } else if (item.itemId == R.id.action_favorite) {
             toast("Marked as favourite")
-        }
+            return true
+        } else if (item.itemId == R.id.action_play)
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(song.link)))
         return false
     }
 
@@ -42,16 +39,13 @@ class SongDetailActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_song_detail)
-        supportActionBar!!.setDisplayShowTitleEnabled(false)
+
+        song = intent.extras.getParcelable<Song>("SONG")
+
+        title = song.artist
+        supportActionBar!!.subtitle = song.title
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
-        val song: Song = intent.extras.getParcelable<Song>("SONG")
-
-        buttonYouTube.setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(song.link)))
-        }
-
-        textViewSong.text = "${song.artist} - ${song.title}"
         textViewLyrics.movementMethod = ScrollingMovementMethod()
 
         doAsync {

@@ -1,6 +1,7 @@
 package com.example.glenmerry.songle
 
 import android.content.*
+import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.os.AsyncTask
 import android.os.Bundle
@@ -10,7 +11,6 @@ import android.support.v7.app.AppCompatActivity
 import android.util.Xml
 import kotlinx.android.synthetic.main.content_main.*
 import org.jetbrains.anko.selector
-import org.jetbrains.anko.toast
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 import java.io.IOException
@@ -18,6 +18,8 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import android.os.Parcel
+import org.jetbrains.anko.alert
+import java.util.*
 
 data class Song(val number: String, val artist: String, val title: String, val link: String) : Parcelable {
 
@@ -45,8 +47,10 @@ data class Song(val number: String, val artist: String, val title: String, val l
         }
     }
 }
+
 var songs = listOf<Song>()
 val songsFound: ArrayList<Song> = ArrayList()
+var songToPlayIndexString = "01"
 
 class MainActivity : AppCompatActivity() {
 
@@ -64,23 +68,40 @@ class MainActivity : AppCompatActivity() {
         val distWalkedUnit = "km"
         textViewDistance.text = "You have walked $distWalked$distWalkedUnit while playing Songle!"
 
-
         // Register BroadcastReceiver to track connection changes.
         val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
         this.registerReceiver(receiver, filter)
 
         buttonPlay.setOnClickListener {
-            if (selectedDifficulty != null) {
-                val intent = Intent(this, MapsActivity::class.java)
-                intent.putExtra("DIFFICULTY", selectedDifficulty!!)
-                intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
-                intent.putParcelableArrayListExtra("SONGSFOUND", songsFound)
-                startActivity(intent)
+
+            val lm = this.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            var gpsEnabled = false
+            try {
+                gpsEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+            } catch (exception: Exception) {}
+
+            if (!gpsEnabled) {
+                alert("Location services are required for the Songle map, please turn them on!") {
+                    positiveButton("OK") {}
+                }.show()
             } else {
-                selector("Please select a difficulty", difficulties, { _, i ->
-                    selectedDifficulty = (5-i)
-                    textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
-                })
+                if (selectedDifficulty != null) {
+                    val intent = Intent(this, MapsActivity::class.java)
+                    intent.putExtra("DIFFICULTY", selectedDifficulty!!)
+                    intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
+                    intent.putExtra("SONGTOPLAY", songToPlayIndexString)
+                    startActivity(intent)
+                } else {
+                    selector("Please select a difficulty", difficulties, { _, i ->
+                        selectedDifficulty = (5-i)
+                        textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
+                        val intent = Intent(this, MapsActivity::class.java)
+                        intent.putExtra("DIFFICULTY", selectedDifficulty!!)
+                        intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
+                        intent.putExtra("SONGTOPLAY", songToPlayIndexString)
+                        startActivity(intent)
+                    })
+                }
             }
         }
 
@@ -101,8 +122,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
     }
-
-
 
     private inner class NetworkReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -126,6 +145,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+}
+
+fun randomSongIndex(from: Int, to: Int): Int {
+    val random = Random()
+    return random.nextInt(to - from) + from
 }
 
 interface DownloadCompleteListener {
@@ -179,6 +203,18 @@ class DownloadXmlTask : AsyncTask<String, Void, String>(){
         for (i in 0..8) {
             songsFound.add(songs[i])
         }
+
+        var songToPlayIndex = randomSongIndex(0, songs.size)
+        while (songsFound.contains(songs[songToPlayIndex])) {
+            songToPlayIndex = randomSongIndex(0, songs.size)
+        }
+
+        if (songToPlayIndex < 10) {
+            songToPlayIndexString = "0${songToPlayIndex}"
+        } else {
+            songToPlayIndexString = songToPlayIndex.toString()
+        }
+
     }
 }
 
