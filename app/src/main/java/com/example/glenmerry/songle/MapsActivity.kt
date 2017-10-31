@@ -8,8 +8,11 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat.checkSelfPermission
+import android.support.v7.app.AlertDialog
+import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.EditText
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.location.LocationListener
@@ -23,13 +26,13 @@ import com.google.maps.android.data.kml.KmlContainer
 import com.google.maps.android.data.kml.KmlLayer
 import com.google.maps.android.data.kml.KmlPlacemark
 import org.jetbrains.anko.activityUiThread
+import org.jetbrains.anko.alert
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 import kotlin.collections.HashMap
-
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, LocationListener {
@@ -40,6 +43,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     var mLocationPermissionGranted = false
     private lateinit var mLastLocation: Location
     val TAG = "MapsActivity"
+    var songToPlayIndexString = "01"
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_maps, menu)
@@ -47,19 +51,73 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == android.R.id.home) {
-            onBackPressed()
-            return true
-        } else if (item.itemId == R.id.action_lyrics_list) {
-            val intent = Intent(this, LyricsFoundActivity::class.java)
-            startActivity(intent)
-            return true
+        when {
+            item.itemId == android.R.id.home -> {
+                onBackPressed()
+                return true
+            }
+            item.itemId == R.id.action_lyrics_list -> {
+                val intent = Intent(this, LyricsFoundActivity::class.java)
+                //intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
+                startActivity(intent)
+                return true
+            }
+            item.itemId == R.id.action_guess -> {
+                makeGuess()
+                return true
+            }
+            item.itemId == R.id.action_skip -> {
+                toast("Skip this song")
+                return true
+            }
+            item.itemId == R.id.action_hint -> {
+                toast("give hint")
+                return true
+            }
+            else -> return false
         }
-        return false
+    }
+
+    fun makeGuess() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Make a guess")
+        builder.setMessage("Please input the song name")
+        val input = EditText(this)
+        input.inputType = InputType.TYPE_CLASS_TEXT
+        builder.setView(input)
+        builder.setPositiveButton("Make Guess!") { dialog, which ->
+            if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()].title.toLowerCase()) {
+                val builder = AlertDialog.Builder(this)
+                builder.setTitle("Nice one, you guessed correctly!")
+                builder.setMessage("View the full lyrics, or move to the next song?")
+                builder.setPositiveButton("Next Song") { dialog, which ->
+                    dialog.cancel()
+                }
+                builder.setNegativeButton("View Lyrics"){ dialog, which ->
+                    val intent = Intent(this, SongDetailActivity::class.java)
+                    intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
+                    startActivity(intent)
+                }
+                builder.show()
+            } else {
+                //toast("Guess incorrect, please try again")
+                val builder = AlertDialog.Builder(this)
+                builder.setTitle("Sorry, that's not quite right")
+                builder.setMessage("Try again?")
+                builder.setPositiveButton("Try Again") { dialog, which ->
+                    makeGuess()
+                }
+                builder.setNegativeButton("Back to map") { dialog, which ->
+                    dialog.cancel()
+                }
+                builder.show()
+            }
+        }
+        builder.setNegativeButton("Cancel") { dialog, which -> dialog.cancel() }
+        builder.show()
     }
 
     private var difficulty: Int = 1
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -69,9 +127,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
         difficulty = intent.extras.getInt("DIFFICULTY")
         val songs: ArrayList<Song> = intent.extras.getParcelableArrayList("SONGS")
-        val songToPlay = intent.extras.getString("SONGTOPLAY")
+        val songToPlayIndexString = intent.extras.getString("SONGTOPLAY")
 
-        toast("Playing song: ${songs[songToPlay.toInt()].title}")
+        toast("Playing song: ${songs[songToPlayIndexString.toInt()].title}")
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
@@ -114,8 +172,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             val layer = KmlLayer(mMap, conn.inputStream, applicationContext)
 
             activityUiThread {
-
-
                  /*
                     for (container: KmlContainer in containers ) {
                         if (container.hasContainers()) {
@@ -124,21 +180,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 }
                 }*/
 
-                layer.setOnFeatureClickListener(object: Layer.OnFeatureClickListener {
-                    override fun onFeatureClick(feature: Feature) {
-                        feature.getProperty("name")
-                        println(feature.properties)
+                layer.setOnFeatureClickListener { feature ->
+                    feature.getProperty("name")
 
-                        val coordinates = feature.getProperty("point")
+                    toast("${feature.id} ${feature.getProperty("name")} clicked")
 
-                        toast("${feature.id} ${feature.getProperty("name")} clicked")
-
-                        var newProperties = HashMap<String, String>()
-                        newProperties.set("description", feature.getProperty("description"))
-
-                        //println(layer.containers.first())
-                    }
-                })
+                }
                 layer.addLayerToMap()
 
             }

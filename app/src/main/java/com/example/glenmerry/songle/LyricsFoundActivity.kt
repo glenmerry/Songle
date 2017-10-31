@@ -1,30 +1,84 @@
 package com.example.glenmerry.songle
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Typeface
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.MenuItem
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.BaseExpandableListAdapter
 import android.widget.ExpandableListView
 import android.widget.TextView
+import org.jetbrains.anko.toast
+import android.text.InputType
+import android.support.v7.app.AlertDialog
+import android.widget.EditText
 
 class LyricsFoundActivity : AppCompatActivity() {
+
+    //lateinit var song: Song
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_lyrics_found, menu)
+        return true
+    }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
             onBackPressed()
             return true
+        } else if (item.itemId == R.id.action_guess) {
+            makeGuess()
+            return true
         }
         return false
+    }
+
+    private fun makeGuess() {
+        //toast(song.title.toLowerCase())
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Make a guess")
+        builder.setMessage("Please input the song name")
+        val input = EditText(this)
+        input.inputType = InputType.TYPE_CLASS_TEXT
+        builder.setView(input)
+        builder.setPositiveButton("Make Guess!") { dialog, which ->
+            toast(songs[songToPlayIndexString.toInt()].title.toLowerCase())
+            if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()].title.toLowerCase()) {
+                val builder = AlertDialog.Builder(this)
+                builder.setTitle("Nice one, you guessed correctly!")
+                builder.setMessage("View the full lyrics, or move to the next song?")
+                builder.setPositiveButton("Next Song") { dialog, which ->
+                    val intent = Intent(this, MapsActivity::class.java)
+                    startActivity(intent)
+                }
+                builder.setNegativeButton("View Lyrics"){ dialog, which ->
+                    val intent = Intent(this, SongDetailActivity::class.java)
+                    intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
+                    startActivity(intent)
+                }
+                builder.show()
+            } else {
+                val builder = AlertDialog.Builder(this)
+                builder.setTitle("Sorry, that's not quite right")
+                builder.setMessage("Try again?")
+                builder.setPositiveButton("Try Again") { dialog, which ->
+                    makeGuess()
+                }
+                builder.setNegativeButton("Back to found lyrics") { dialog, which ->
+                    dialog.cancel()
+                }
+                builder.show()
+            }
+        }
+        builder.setNegativeButton("Cancel") { dialog, which -> dialog.cancel() }
+        builder.show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_lyrics_found)
+        //song = intent.extras.getParcelable<Song>("SONG")
 
         val lyrics: HashMap<String, List<String>> = hashMapOf("very interesting" to listOf("Galileo", "Magnifico", "Bismillah"),
                 "interesting" to listOf("poor", "silhoetto", "wind", "trigger"), "boring" to listOf("the", "and", "a"))
@@ -48,7 +102,7 @@ class ExpandableListAdapter(private val context: Context, private val listDataHe
     }
 
     override fun getGroup(p0: Int): Any {
-        return listDataHeader
+        return listDataHeader[p0]
     }
 
     override fun getChild(i: Int, j: Int): Any {

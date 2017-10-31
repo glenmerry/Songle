@@ -18,6 +18,8 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import android.os.Parcel
+import android.view.Menu
+import android.view.MenuItem
 import org.jetbrains.anko.alert
 import java.util.*
 
@@ -59,6 +61,22 @@ class MainActivity : AppCompatActivity() {
     private var connectionLost = false
     private var selectedDifficulty: Int? = null
     private val difficulties = listOf("Beginner", "Easy", "Medium", "Hard", "Impossible")
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_activity_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_settings -> {
+                val intent = Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -214,7 +232,6 @@ class DownloadXmlTask : AsyncTask<String, Void, String>(){
         } else {
             songToPlayIndexString = songToPlayIndex.toString()
         }
-
     }
 }
 

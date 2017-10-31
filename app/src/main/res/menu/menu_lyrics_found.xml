@@ -1,0 +1,10 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_guess"
+        android:icon="@drawable/ic_lock_open_white_24px"
+        android:title="@string/action_guess"
+        app:showAsAction="ifRoom"/>
+
+</menu>
