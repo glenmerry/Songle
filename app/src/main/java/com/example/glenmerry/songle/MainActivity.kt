@@ -218,7 +218,7 @@ class DownloadXmlTask : AsyncTask<String, Void, String>(){
         for (song in songs) {
             println(song)
         }
-        for (i in 0..8) {
+        for (i in 0..7) {
             songsFound.add(songs[i])
         }
 

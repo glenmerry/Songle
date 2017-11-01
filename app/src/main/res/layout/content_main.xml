@@ -34,17 +34,17 @@
         android:id="@+id/buttonSelectDifficulty"
         android:layout_width="313dp"
         android:layout_height="56dp"
-        android:layout_marginBottom="8dp"
+        android:layout_marginBottom="64dp"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="72dp"
+        android:layout_marginTop="8dp"
         android:text="Select Difficulty"
         app:layout_constraintBottom_toTopOf="@+id/buttonSongsFound"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.509"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/buttonPlay"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintVertical_bias="0.93" />
 
     <Button
         android:id="@+id/buttonPlay"
@@ -53,10 +53,10 @@
         android:layout_height="120dp"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="56dp"
+        android:layout_marginTop="48dp"
         android:text="Play"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.508"
+        app:layout_constraintHorizontal_bias="0.509"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 

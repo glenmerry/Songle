@@ -38,7 +38,7 @@ class LyricsFoundActivity : AppCompatActivity() {
         //toast(song.title.toLowerCase())
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Make a guess")
-        builder.setMessage("Please input the song name")
+        builder.setMessage("Please input the song title")
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_TEXT
         builder.setView(input)
@@ -47,22 +47,29 @@ class LyricsFoundActivity : AppCompatActivity() {
             if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()].title.toLowerCase()) {
                 val builder = AlertDialog.Builder(this)
                 builder.setTitle("Nice one, you guessed correctly!")
-                builder.setMessage("View the full lyrics, or move to the next song?")
+                builder.setMessage("View the full lyrics, share with your friends or move to the next song?")
                 builder.setPositiveButton("Next Song") { dialog, which ->
                     val intent = Intent(this, MapsActivity::class.java)
                     startActivity(intent)
                 }
-                builder.setNegativeButton("View Lyrics"){ dialog, which ->
+                builder.setNegativeButton("View Lyrics") { dialog, which ->
                     val intent = Intent(this, SongDetailActivity::class.java)
                     intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
                     startActivity(intent)
+                }
+                builder.setNeutralButton("Share") { dialog, which ->
+                    val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
+                    sharingIntent.type = "text/plain"
+                    sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
+                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked Bohemian Rhapsody by Queen on Songle!")
+                    startActivity(Intent.createChooser(sharingIntent, "Share via"))
                 }
                 builder.show()
             } else {
                 val builder = AlertDialog.Builder(this)
                 builder.setTitle("Sorry, that's not quite right")
-                builder.setMessage("Try again?")
-                builder.setPositiveButton("Try Again") { dialog, which ->
+                builder.setMessage("Guess again?")
+                builder.setPositiveButton("Guess again") { dialog, which ->
                     makeGuess()
                 }
                 builder.setNegativeButton("Back to found lyrics") { dialog, which ->

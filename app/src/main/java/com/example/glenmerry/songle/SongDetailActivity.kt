@@ -65,7 +65,7 @@ class SongDetailActivity : AppCompatActivity() {
         textViewLyrics.movementMethod = ScrollingMovementMethod()
 
         val fab = findViewById(R.id.fav_fab) as FloatingActionButton
-        fab.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.ic_favorite_border_white_24px))
+        fab.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.ic_favorite_white_24px))
         fab.setOnClickListener {
             toast("marked as favourite")
         }

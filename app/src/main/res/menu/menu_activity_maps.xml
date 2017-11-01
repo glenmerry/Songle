@@ -13,16 +13,17 @@
         android:title="@string/action_hint"
         app:showAsAction="always"/>
 
-    <item
-        android:id="@+id/action_skip"
-        android:icon="@drawable/ic_skip_next_white_24px"
-        android:title="@string/action_skip"
-        app:showAsAction="ifRoom"/>
 
     <item
         android:id="@+id/action_guess"
         android:icon="@drawable/ic_lock_open_white_24px"
         android:title="@string/action_guess"
         app:showAsAction="always"/>
+
+    <item
+        android:id="@+id/action_skip"
+        android:icon="@drawable/ic_skip_next_white_24px"
+        android:title="@string/action_skip"
+        app:showAsAction="ifRoom"/>
 
 </menu>

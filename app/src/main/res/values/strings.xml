@@ -11,6 +11,7 @@
     <string name="action_hint">Get hint</string>
     <string name="action_play">Play music video</string>
     <string name="action_share">Share</string>
+    <string name="action_show_favourites">Show favourites</string>
 
     <!-- Strings related to Settings -->
 

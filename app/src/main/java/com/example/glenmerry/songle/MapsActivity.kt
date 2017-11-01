@@ -25,10 +25,7 @@ import com.google.maps.android.data.Layer
 import com.google.maps.android.data.kml.KmlContainer
 import com.google.maps.android.data.kml.KmlLayer
 import com.google.maps.android.data.kml.KmlPlacemark
-import org.jetbrains.anko.activityUiThread
-import org.jetbrains.anko.alert
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.toast
+import org.jetbrains.anko.*
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
@@ -71,7 +68,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 return true
             }
             item.itemId == R.id.action_hint -> {
-                toast("give hint")
+                alert("Want a hint?") {
+                    positiveButton("Yes please!") {
+                        alert("\n\"Magnifico\"\n\nThink you've got it now?","Here's a word that might help...") {
+                            positiveButton("Yep!") {makeGuess()}
+                            negativeButton("Not yet - keep playing") {}
+                        }.show()
+                    }
+                    negativeButton("No I'm fine thanks") {}
+                }.show()
                 return true
             }
             else -> return false
@@ -81,7 +86,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     fun makeGuess() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Make a guess")
-        builder.setMessage("Please input the song name")
+        builder.setMessage("Please input the song title")
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_TEXT
         builder.setView(input)
@@ -89,22 +94,30 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()].title.toLowerCase()) {
                 val builder = AlertDialog.Builder(this)
                 builder.setTitle("Nice one, you guessed correctly!")
-                builder.setMessage("View the full lyrics, or move to the next song?")
+                builder.setMessage("View the full lyrics, share with your friends or move to the next song?")
                 builder.setPositiveButton("Next Song") { dialog, which ->
-                    dialog.cancel()
-                }
-                builder.setNegativeButton("View Lyrics"){ dialog, which ->
-                    val intent = Intent(this, SongDetailActivity::class.java)
-                    intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
+                    val intent = Intent(this, MapsActivity::class.java)
                     startActivity(intent)
+                }
+                builder.setNegativeButton("View Lyrics") { dialog, which ->
+                    val intent = Intent(this, SongDetailActivity::class.java)
+                    intent.putExtra("SONG", songs[com.example.glenmerry.songle.songToPlayIndexString.toInt()])
+                    startActivity(intent)
+                }
+                builder.setNeutralButton("Share") { dialog, which ->
+                    val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
+                    sharingIntent.type = "text/plain"
+                    sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
+                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked Bohemian Rhapsody by Queen on Songle!")
+                    startActivity(Intent.createChooser(sharingIntent, "Share via"))
                 }
                 builder.show()
             } else {
                 //toast("Guess incorrect, please try again")
                 val builder = AlertDialog.Builder(this)
                 builder.setTitle("Sorry, that's not quite right")
-                builder.setMessage("Try again?")
-                builder.setPositiveButton("Try Again") { dialog, which ->
+                builder.setMessage("Guess again?")
+                builder.setPositiveButton("Guess again") { dialog, which ->
                     makeGuess()
                 }
                 builder.setNegativeButton("Back to map") { dialog, which ->
