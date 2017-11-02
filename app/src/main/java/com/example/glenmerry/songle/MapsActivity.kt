@@ -1,8 +1,11 @@
 package com.example.glenmerry.songle
 
 import android.Manifest
+import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.location.Location
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
@@ -20,6 +23,8 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.*
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.MarkerOptions
 import com.google.maps.android.data.Feature
 import com.google.maps.android.data.Layer
 import com.google.maps.android.data.kml.KmlContainer
@@ -32,7 +37,7 @@ import java.util.*
 import kotlin.collections.HashMap
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener, LocationListener {
+        GoogleApiClient.OnConnectionFailedListener, LocationListener, GoogleMap.OnMarkerClickListener {
 
     private lateinit var mMap: GoogleMap
     private lateinit var mGoogleApiClient: GoogleApiClient
@@ -41,6 +46,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private lateinit var mLastLocation: Location
     val TAG = "MapsActivity"
     var songToPlayIndexString = "01"
+    private var distanceWalked = 0.toFloat()
+    private lateinit var lastLoc: Location
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_maps, menu)
@@ -157,6 +164,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
                 .build()
+
+
+
+        lastLoc = Location("")
+        lastLoc.latitude = (55.944009)
+        lastLoc.longitude = -3.188438
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -194,9 +207,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 }*/
 
                 layer.setOnFeatureClickListener { feature ->
-                    feature.getProperty("name")
+                    //feature.getProperty("name")
 
-                    toast("${feature.id} ${feature.getProperty("name")} clicked")
+                    //toast("${feature.id} ${feature.getProperty("name")} clicked")
 
                 }
                 layer.addLayerToMap()
@@ -204,6 +217,19 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             }
         }
 
+        val mGeorgeSq = mMap.addMarker(MarkerOptions()
+                .position(LatLng(55.9436125635442,-3.18878173828125))
+                .title("New word!")
+                .snippet("Galileo"))
+        mGeorgeSq.tag = 0
+        mMap.setOnMarkerClickListener(this)
+
+
+    }
+
+    override fun onMarkerClick(marker: Marker): Boolean {
+        toast("marker clicked")
+        return false
     }
 
     override fun onStart() {
@@ -254,6 +280,29 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         println("[onLocationChanged] Lat/long now (${current.latitude}, ${current.longitude})" )
         }
         // Do something with current location
+        distanceWalked += current!!.distanceTo(lastLoc)
+        lastLoc = current
+        toast("distance changed to $distanceWalked")
+        if (distanceWalked > 1000) {
+            alert("You hit your walking target of 1km", "Congratulations!") {
+                positiveButton("Set new target") {
+                    /*val alert = AlertDialog.Builder(Context(MapsActivity))
+                    alert.setTitle("Set a new walking target in metres")
+                    val input = EditText(MapsActivity)
+                    input.inputType = InputType.TYPE_CLASS_NUMBER
+                    input.setRawInputType(Configuration.KEYBOARD_12KEY)
+                    alert.setView(input)
+                    alert.setPositiveButton("Set", DialogInterface.OnClickListener { dialog, whichButton ->
+
+                    })
+                    alert.setNegativeButton("Cancel", DialogInterface.OnClickListener { dialog, whichButton ->
+
+                    })
+                    alert.show()*/
+                }
+                negativeButton("Back to map") {}
+            } .show()
+        }
     }
 
     override fun onConnectionSuspended(flag : Int) {

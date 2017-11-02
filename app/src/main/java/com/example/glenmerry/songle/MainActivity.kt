@@ -20,8 +20,18 @@ import java.net.URL
 import android.os.Parcel
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.ProgressBar
+import android.widget.TextView
 import org.jetbrains.anko.alert
+import org.jetbrains.anko.toast
 import java.util.*
+import android.content.DialogInterface
+import android.content.res.Configuration
+import android.content.res.Configuration.KEYBOARD_12KEY
+import android.text.InputType
+import android.support.v4.widget.SearchViewCompat.setInputType
+import android.support.v7.app.AlertDialog
+import android.widget.EditText
 
 data class Song(val number: String, val artist: String, val title: String, val link: String) : Parcelable {
 
@@ -69,9 +79,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_settings -> {
-                val intent = Intent(this, SettingsActivity::class.java)
-                startActivity(intent)
+            R.id.action_reset -> {
+                alert("All progress will be lost!", "Are you sure you want to reset the game?") {
+                    positiveButton("Yes, I'm sure") {}
+                    negativeButton("No, abort") {}
+                }.show()
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -81,10 +93,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        val distWalked = 1.2
-        val distWalkedUnit = "km"
-        textViewDistance.text = "You have walked $distWalked$distWalkedUnit while playing Songle!"
 
         // Register BroadcastReceiver to track connection changes.
         val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
@@ -132,8 +140,36 @@ class MainActivity : AppCompatActivity() {
 
         DownloadXmlTask().execute("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
 
-        buttonSongsFound.setOnClickListener {
+        val progBarSongs = findViewById(R.id.progressBar) as ProgressBar
+        val progTextSongs = findViewById(R.id.textViewProgress) as TextView
+        progBarSongs.max = 18
+        progBarSongs.progress = 7
+        progTextSongs.text = "7/18 Songs Found"
 
+        val progBarDist = findViewById(R.id.progressBarWalkingTarget) as ProgressBar
+        val progTextDist = findViewById(R.id.textViewProgressWalkingTarget) as TextView
+        progBarDist.max = 2000
+        progBarDist.progress = 1200
+        progTextDist.text = "You have walked 420m of your 1km target!"
+
+        buttonSetTarget.setOnClickListener {
+            val alert = AlertDialog.Builder(this)
+            alert.setTitle("Set a new walking target in metres")
+            val input = EditText(this)
+            input.inputType = InputType.TYPE_CLASS_NUMBER
+            input.setRawInputType(Configuration.KEYBOARD_12KEY)
+            alert.setView(input)
+            alert.setPositiveButton("Set", DialogInterface.OnClickListener { dialog, whichButton ->
+
+            })
+            alert.setNegativeButton("Cancel", DialogInterface.OnClickListener { dialog, whichButton ->
+
+            })
+            alert.show()
+        }
+
+
+        buttonSongsFound.setOnClickListener {
             val intent = Intent(this, SongsFoundActivity::class.java)
             intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
             intent.putParcelableArrayListExtra("SONGSFOUND", songsFound)
