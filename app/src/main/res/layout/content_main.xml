@@ -18,14 +18,16 @@
         app:layout_constraintGuide_begin="-181dp" />
 
     <Button
-        android:id="@+id/buttonSongsFound"
-        android:layout_width="338dp"
-        android:layout_height="56dp"
+        android:id="@+id/buttonSongsUnlocked"
+        android:layout_width="313dp"
+        android:layout_height="51dp"
         android:layout_marginBottom="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
-        android:text="See Songs Found"
+        android:background="#5e35b1"
+        android:text="@string/buttonSongsUnlocked"
+        android:textColor="#ffff"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -39,21 +41,26 @@
         android:layout_marginBottom="16dp"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:text="Select Difficulty"
+        android:layout_marginTop="8dp"
+        android:background="#616161"
+        android:text="@string/buttonSelectDifficulty"
+        android:textColor="#ffff"
         app:layout_constraintBottom_toTopOf="@+id/progressBar"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.509"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textViewShowDiff"
+        app:layout_constraintVertical_bias="1.0" />
 
     <Button
         android:id="@+id/buttonPlay"
         style="@style/Widget.AppCompat.Button.Colored"
         android:layout_width="313dp"
-        android:layout_height="126dp"
+        android:layout_height="141dp"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="16dp"
-        android:text="Play"
+        android:text="@string/buttonPlay"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.509"
         app:layout_constraintStart_toStartOf="parent"
@@ -70,6 +77,7 @@
         android:layout_marginStart="8dp"
         android:minHeight="60dp"
         android:minWidth="220dp"
+        android:theme="@style/AppTheme.PurpleAccent"
         app:layout_constraintBottom_toTopOf="@+id/textViewProgress"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
@@ -86,9 +94,10 @@
         android:layout_marginTop="12dp"
         android:minHeight="60dp"
         android:minWidth="220dp"
+        android:theme="@style/AppTheme.OrangeAccent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/buttonSongsFound" />
+        app:layout_constraintTop_toBottomOf="@+id/buttonSongsUnlocked" />
 
     <TextView
         android:id="@+id/textViewProgress"
@@ -99,9 +108,10 @@
         android:layout_marginBottom="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
-        android:text="Text Here"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        app:layout_constraintBottom_toTopOf="@+id/buttonSongsFound"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#5e35b1"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/buttonSongsUnlocked"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
@@ -114,7 +124,8 @@
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:gravity="center"
-        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:textColor="#f57f17"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.516"
@@ -123,28 +134,27 @@
 
     <TextView
         android:id="@+id/textViewShowDiff"
-        android:layout_width="224dp"
-        android:layout_height="22dp"
-        android:layout_marginBottom="8dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginStart="8dp"
+        android:layout_width="326dp"
+        android:layout_height="26dp"
         android:layout_marginTop="8dp"
         android:gravity="center"
-        app:layout_constraintBottom_toTopOf="@+id/buttonSelectDifficulty"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/buttonPlay"
-        app:layout_constraintVertical_bias="0.363" />
+        app:layout_constraintTop_toBottomOf="@+id/buttonPlay" />
 
     <Button
         android:id="@+id/buttonSetTarget"
-        android:layout_width="303dp"
-        android:layout_height="46dp"
+        android:layout_width="313dp"
+        android:layout_height="51dp"
         android:layout_marginBottom="8dp"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
-        android:text="Set new walking target"
+        android:background="#f57f17"
+        android:text="@string/buttonSetTarget"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

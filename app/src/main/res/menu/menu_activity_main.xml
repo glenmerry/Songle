@@ -3,8 +3,19 @@
 
     <item
         android:id="@+id/action_reset"
-        android:icon="@drawable/ic_clear_white_24px"
         android:title="@string/action_reset_game"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_collect_distance_pref"
+        android:title="@string/action_collect_distance_pref"
+        android:checkable="true"
+        android:checked="true"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_collect_distance_reset"
+        android:title="@string/action_collect_distance_reset"
         app:showAsAction="never"/>
 
 

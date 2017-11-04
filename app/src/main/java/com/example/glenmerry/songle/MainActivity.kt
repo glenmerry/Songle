@@ -1,64 +1,27 @@
 package com.example.glenmerry.songle
 
 import android.content.*
+import android.content.res.Configuration
 import android.location.LocationManager
 import android.net.ConnectivityManager
-import android.os.AsyncTask
 import android.os.Bundle
-import android.os.Parcelable
 import android.support.design.widget.Snackbar
+import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
-import android.util.Xml
+import android.text.InputType
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.EditText
+import android.widget.ProgressBar
+import android.widget.TextView
 import kotlinx.android.synthetic.main.content_main.*
-import org.jetbrains.anko.selector
-import org.xmlpull.v1.XmlPullParser
+import org.jetbrains.anko.*
 import org.xmlpull.v1.XmlPullParserException
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
-import android.os.Parcel
-import android.view.Menu
-import android.view.MenuItem
-import android.widget.ProgressBar
-import android.widget.TextView
-import org.jetbrains.anko.alert
-import org.jetbrains.anko.toast
 import java.util.*
-import android.content.DialogInterface
-import android.content.res.Configuration
-import android.content.res.Configuration.KEYBOARD_12KEY
-import android.text.InputType
-import android.support.v4.widget.SearchViewCompat.setInputType
-import android.support.v7.app.AlertDialog
-import android.widget.EditText
-
-data class Song(val number: String, val artist: String, val title: String, val link: String) : Parcelable {
-
-    constructor(source: Parcel): this(source.readString(), source.readString(), source.readString(), source.readString())
-
-    override fun describeContents(): Int {
-        return 0
-    }
-
-    override fun writeToParcel(dest: Parcel?, flags: Int) {
-        dest?.writeString(this.number)
-        dest?.writeString(this.artist)
-        dest?.writeString(this.title)
-        dest?.writeString(this.link)
-    }
-
-    companion object {
-        @JvmField final val CREATOR: Parcelable.Creator<Song> = object : Parcelable.Creator<Song> {
-            override fun createFromParcel(source: Parcel): Song{
-                return Song(source)
-            }
-            override fun newArray(size: Int): Array<Song?> {
-                return arrayOfNulls(size)
-            }
-        }
-    }
-}
 
 var songs = listOf<Song>()
 val songsFound: ArrayList<Song> = ArrayList()
@@ -98,9 +61,38 @@ class MainActivity : AppCompatActivity() {
         val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
         this.registerReceiver(receiver, filter)
 
+        doAsync {
+            try {
+                loadXmlFromNetwork("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
+            } catch (e: IOException) {
+                "Unable to load content. Check your network connection"
+            } catch (e: XmlPullParserException) {
+                "Error parsing XML"
+            }
+            activityUiThread {
+                for (song in songs) {
+                    println(song)
+                }
+                for (i in 1..16) {
+                    songsFound.add(songs[i])
+                }
+
+                var songToPlayIndex = randomSongIndex(0, songs.size)
+                while (songsFound.contains(songs[songToPlayIndex])) {
+                    songToPlayIndex = randomSongIndex(0, songs.size)
+                }
+
+                songToPlayIndexString = if (songToPlayIndex < 10) {
+                    "0$songToPlayIndex"
+                } else {
+                    songToPlayIndex.toString()
+                }
+            }
+        }
+
         buttonPlay.setOnClickListener {
 
-            val lm = this.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            /*val lm = this.getSystemService(Context.LOCATION_SERVICE) as LocationManager
             var gpsEnabled = false
             try {
                 gpsEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
@@ -110,7 +102,7 @@ class MainActivity : AppCompatActivity() {
                 alert("Location services are required for the Songle map, please turn them on!") {
                     positiveButton("OK") {}
                 }.show()
-            } else {
+            } else {*/
                 if (selectedDifficulty != null) {
                     val intent = Intent(this, MapsActivity::class.java)
                     intent.putExtra("DIFFICULTY", selectedDifficulty!!)
@@ -128,7 +120,7 @@ class MainActivity : AppCompatActivity() {
                         startActivity(intent)
                     })
                 }
-            }
+            //}
         }
 
         buttonSelectDifficulty.setOnClickListener {
@@ -138,19 +130,17 @@ class MainActivity : AppCompatActivity() {
             })
         }
 
-        DownloadXmlTask().execute("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
-
         val progBarSongs = findViewById(R.id.progressBar) as ProgressBar
         val progTextSongs = findViewById(R.id.textViewProgress) as TextView
         progBarSongs.max = 18
         progBarSongs.progress = 7
-        progTextSongs.text = "7/18 Songs Found"
+        progTextSongs.text = "7/18 Songs Unlocked"
 
         val progBarDist = findViewById(R.id.progressBarWalkingTarget) as ProgressBar
         val progTextDist = findViewById(R.id.textViewProgressWalkingTarget) as TextView
         progBarDist.max = 2000
         progBarDist.progress = 1200
-        progTextDist.text = "You have walked 420m of your 1km target!"
+        progTextDist.text = "You have walked 420m of your 1km target!\nOverall distance walked: 2.5km"
 
         buttonSetTarget.setOnClickListener {
             val alert = AlertDialog.Builder(this)
@@ -159,18 +149,18 @@ class MainActivity : AppCompatActivity() {
             input.inputType = InputType.TYPE_CLASS_NUMBER
             input.setRawInputType(Configuration.KEYBOARD_12KEY)
             alert.setView(input)
-            alert.setPositiveButton("Set", DialogInterface.OnClickListener { dialog, whichButton ->
+            alert.setPositiveButton("Set", { dialog, whichButton ->
 
             })
-            alert.setNegativeButton("Cancel", DialogInterface.OnClickListener { dialog, whichButton ->
+            alert.setNegativeButton("Cancel", { dialog, whichButton ->
 
             })
             alert.show()
         }
 
 
-        buttonSongsFound.setOnClickListener {
-            val intent = Intent(this, SongsFoundActivity::class.java)
+        buttonSongsUnlocked.setOnClickListener {
+            val intent = Intent(this, SongsUnlockedActivity::class.java)
             intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
             intent.putParcelableArrayListExtra("SONGSFOUND", songsFound)
             startActivity(intent)
@@ -184,7 +174,7 @@ class MainActivity : AppCompatActivity() {
 
             if (networkInfo != null) {
                 // Network is available
-                if (connectionLost == true) {
+                if (connectionLost) {
                     val snackbar : Snackbar = Snackbar.make(findViewById(android.R.id.content),
                             "Connected", Snackbar.LENGTH_SHORT)
                     snackbar.show()
@@ -197,28 +187,6 @@ class MainActivity : AppCompatActivity() {
                 snackbar.show()
                 connectionLost = true
             }
-        }
-    }
-}
-
-fun randomSongIndex(from: Int, to: Int): Int {
-    val random = Random()
-    return random.nextInt(to - from) + from
-}
-
-interface DownloadCompleteListener {
-    fun downloadComplete()
-}
-
-class DownloadXmlTask : AsyncTask<String, Void, String>(){
-
-    override fun doInBackground(vararg urls: String): String {
-        return try {
-            loadXmlFromNetwork(urls[0])
-        } catch (e: IOException) {
-            "Unable to load content. Check your network connection"
-        } catch (e: XmlPullParserException) {
-            "Error parsing XML"
         }
     }
 
@@ -249,135 +217,8 @@ class DownloadXmlTask : AsyncTask<String, Void, String>(){
         return conn.inputStream
     }
 
-    override fun onPostExecute(result: String) {
-        super.onPostExecute(result)
-        for (song in songs) {
-            println(song)
-        }
-        for (i in 0..7) {
-            songsFound.add(songs[i])
-        }
-
-        var songToPlayIndex = randomSongIndex(0, songs.size)
-        while (songsFound.contains(songs[songToPlayIndex])) {
-            songToPlayIndex = randomSongIndex(0, songs.size)
-        }
-
-        if (songToPlayIndex < 10) {
-            songToPlayIndexString = "0${songToPlayIndex}"
-        } else {
-            songToPlayIndexString = songToPlayIndex.toString()
-        }
-    }
-}
-
-class SongListXMLParser {
-    // We don't use namespaces
-    private val ns: String? = null
-
-    @Throws(XmlPullParserException::class, IOException::class)
-    fun parse(input: InputStream): List<Song> {
-        input.use {
-            val parser = Xml.newPullParser()
-            parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
-            parser.setInput(input, null)
-            parser.nextTag()
-            return readFeed(parser)
-        }
-    }
-
-    @Throws(XmlPullParserException::class, IOException::class)
-    private fun readFeed(parser: XmlPullParser): List<Song> {
-        val entries = ArrayList<Song>()
-        parser.require(XmlPullParser.START_TAG, ns, "Songs")
-        while (parser.next() != XmlPullParser.END_TAG) {
-            if (parser.eventType != XmlPullParser.START_TAG) {
-                continue
-            }
-            // Starts by looking for the entry tag
-            if (parser.name == "Song") {
-                entries.add(readEntry(parser))
-            } else {
-                skip(parser)
-            }
-        }
-        return entries
-    }
-
-    @Throws(XmlPullParserException::class, IOException::class)
-    private fun readEntry(parser: XmlPullParser): Song {
-        parser.require(XmlPullParser.START_TAG, ns, "Song")
-        var number = ""
-        var artist = ""
-        var title = ""
-        var link = ""
-        while (parser.next() != XmlPullParser.END_TAG) {
-            if (parser.eventType != XmlPullParser.START_TAG)
-                continue
-            when (parser.name) {
-                "Number" -> number = readNumber(parser)
-                "Artist" -> artist = readArtist(parser)
-                "Title" -> title = readTitle(parser)
-                "Link" -> link = readLink(parser)
-                else -> skip(parser)
-            }
-        }
-        return Song(number, artist, title, link)
-    }
-
-    @Throws(IOException::class, XmlPullParserException::class)
-    private fun readNumber(parser: XmlPullParser): String {
-        parser.require(XmlPullParser.START_TAG, ns, "Number")
-        val number = readText(parser)
-        parser.require(XmlPullParser.END_TAG, ns, "Number")
-        return number
-    }
-
-    @Throws(IOException::class, XmlPullParserException::class)
-    private fun readArtist(parser: XmlPullParser): String {
-        parser.require(XmlPullParser.START_TAG, ns, "Artist")
-        val artist = readText(parser)
-        parser.require(XmlPullParser.END_TAG, ns, "Artist")
-        return artist
-    }
-
-    @Throws(IOException::class, XmlPullParserException::class)
-    private fun readTitle(parser: XmlPullParser): String {
-        parser.require(XmlPullParser.START_TAG, ns, "Title")
-        val title = readText(parser)
-        parser.require(XmlPullParser.END_TAG, ns, "Title")
-        return title
-    }
-
-    @Throws(IOException::class, XmlPullParserException::class)
-    private fun readLink(parser: XmlPullParser): String {
-        parser.require(XmlPullParser.START_TAG, ns, "Link")
-        val link = readText(parser)
-        parser.require(XmlPullParser.END_TAG, ns, "Link")
-        return link
-    }
-
-    @Throws(IOException::class, XmlPullParserException::class)
-    private fun readText(parser: XmlPullParser): String {
-        var result = ""
-        if (parser.next() == XmlPullParser.TEXT) {
-            result = parser.text
-            parser.nextTag()
-        }
-        return result
-    }
-
-    @Throws(XmlPullParserException::class, IOException::class)
-    private fun skip(parser: XmlPullParser) {
-        if (parser.eventType != XmlPullParser.START_TAG) {
-            throw IllegalStateException()
-        }
-        var depth = 1
-        while (depth != 0) {
-            when (parser.next()) {
-                XmlPullParser.END_TAG -> depth--
-                XmlPullParser.START_TAG -> depth++
-            }
-        }
+    private fun randomSongIndex(from: Int, to: Int): Int {
+        val random = Random()
+        return random.nextInt(to - from) + from
     }
 }

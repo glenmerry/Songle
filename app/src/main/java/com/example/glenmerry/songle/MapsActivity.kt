@@ -1,17 +1,15 @@
 package com.example.glenmerry.songle
 
 import android.Manifest
-import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.location.Location
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
 import android.support.v4.content.ContextCompat.checkSelfPermission
 import android.support.v7.app.AlertDialog
+import android.support.v7.app.AppCompatActivity
 import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
@@ -21,31 +19,32 @@ import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.location.LocationListener
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.maps.*
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
-import com.google.maps.android.data.Feature
-import com.google.maps.android.data.Layer
-import com.google.maps.android.data.kml.KmlContainer
 import com.google.maps.android.data.kml.KmlLayer
-import com.google.maps.android.data.kml.KmlPlacemark
-import org.jetbrains.anko.*
+import org.jetbrains.anko.activityUiThread
+import org.jetbrains.anko.alert
+import org.jetbrains.anko.doAsync
+import org.jetbrains.anko.toast
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
-import kotlin.collections.HashMap
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, LocationListener, GoogleMap.OnMarkerClickListener {
 
     private lateinit var mMap: GoogleMap
     private lateinit var mGoogleApiClient: GoogleApiClient
-    val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
+    private val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
     var mLocationPermissionGranted = false
-    private lateinit var mLastLocation: Location
-    val TAG = "MapsActivity"
-    var songToPlayIndexString = "01"
+    private var mLastLocation: Location? = null
+    private val tag = "MapsActivity"
+    private var songToPlayIndexString = "01"
     private var distanceWalked = 0.toFloat()
     private lateinit var lastLoc: Location
 
@@ -90,53 +89,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
     }
 
-    fun makeGuess() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Make a guess")
-        builder.setMessage("Please input the song title")
-        val input = EditText(this)
-        input.inputType = InputType.TYPE_CLASS_TEXT
-        builder.setView(input)
-        builder.setPositiveButton("Make Guess!") { dialog, which ->
-            if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()].title.toLowerCase()) {
-                val builder = AlertDialog.Builder(this)
-                builder.setTitle("Nice one, you guessed correctly!")
-                builder.setMessage("View the full lyrics, share with your friends or move to the next song?")
-                builder.setPositiveButton("Next Song") { dialog, which ->
-                    val intent = Intent(this, MapsActivity::class.java)
-                    startActivity(intent)
-                }
-                builder.setNegativeButton("View Lyrics") { dialog, which ->
-                    val intent = Intent(this, SongDetailActivity::class.java)
-                    intent.putExtra("SONG", songs[com.example.glenmerry.songle.songToPlayIndexString.toInt()])
-                    startActivity(intent)
-                }
-                builder.setNeutralButton("Share") { dialog, which ->
-                    val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
-                    sharingIntent.type = "text/plain"
-                    sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
-                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked Bohemian Rhapsody by Queen on Songle!")
-                    startActivity(Intent.createChooser(sharingIntent, "Share via"))
-                }
-                builder.show()
-            } else {
-                //toast("Guess incorrect, please try again")
-                val builder = AlertDialog.Builder(this)
-                builder.setTitle("Sorry, that's not quite right")
-                builder.setMessage("Guess again?")
-                builder.setPositiveButton("Guess again") { dialog, which ->
-                    makeGuess()
-                }
-                builder.setNegativeButton("Back to map") { dialog, which ->
-                    dialog.cancel()
-                }
-                builder.show()
-            }
-        }
-        builder.setNegativeButton("Cancel") { dialog, which -> dialog.cancel() }
-        builder.show()
-    }
-
     private var difficulty: Int = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -165,8 +117,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 .addApi(LocationServices.API)
                 .build()
 
-
-
         lastLoc = Location("")
         lastLoc.latitude = (55.944009)
         lastLoc.longitude = -3.188438
@@ -187,8 +137,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         doAsync {
             val url = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/map$difficulty.kml")
             val conn = url.openConnection() as HttpURLConnection
-            // Also available: HttpsURLConnection
-
             conn.readTimeout = 10000 // milliseconds
             conn.connectTimeout = 15000 // milliseconds
             conn.requestMethod = "GET"
@@ -198,33 +146,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             val layer = KmlLayer(mMap, conn.inputStream, applicationContext)
 
             activityUiThread {
-                 /*
-                    for (container: KmlContainer in containers ) {
-                        if (container.hasContainers()) {
-                        accessContainers(container.getContainers());
-                    }
-                }
-                }*/
-
-                layer.setOnFeatureClickListener { feature ->
-                    //feature.getProperty("name")
-
-                    //toast("${feature.id} ${feature.getProperty("name")} clicked")
-
-                }
                 layer.addLayerToMap()
-
             }
         }
-
         val mGeorgeSq = mMap.addMarker(MarkerOptions()
-                .position(LatLng(55.9436125635442,-3.18878173828125))
+                .position(LatLng(55.9436125635442, -3.18878173828125))
                 .title("New word!")
                 .snippet("Galileo"))
         mGeorgeSq.tag = 0
         mMap.setOnMarkerClickListener(this)
-
-
     }
 
     override fun onMarkerClick(marker: Marker): Boolean {
@@ -244,7 +174,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
     }
 
-    fun createLocationRequest() {
+    private fun createLocationRequest() {
     // Set the parameters for the location request
         val mLocationRequest = LocationRequest()
         mLocationRequest.interval = 5000
@@ -253,25 +183,28 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             LocationRequest.PRIORITY_HIGH_ACCURACY
 
         // Can we access the user’s current location?
-        val permissionCheck = checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+        val permissionCheck = checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
         if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
             LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this)
         }
     }
 
     override fun onConnected(connectionHint : Bundle?) {
-        try { createLocationRequest()
+        try {
+            createLocationRequest()
         } catch (ise : IllegalStateException) {
-            println("IllegalStateException thrown [onConnected]")
+            println("[$tag] [onConnected] IllegalStateException thrown")
         }
         // Can we access the user’s current location?
-        if (checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient)
-        } else {
-            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION),
-                    PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
-        }
-    }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            val api = LocationServices.FusedLocationApi
+            mLastLocation = api.getLastLocation(mGoogleApiClient)
+        // Caution: getLastLocation can return null
+            if (mLastLocation == null) {
+                println("[$tag] Warning: mLastLocation is null")
+            } } else {
+            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
+        } }
 
     override fun onLocationChanged(current : Location?) {
         if (current == null) {
@@ -314,5 +247,52 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         // could not be established. Display an error message, or handle
         // the failure silently
         println(" >>>> onConnectionFailed")
+    }
+
+    private fun makeGuess() {
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Make a guess")
+        builder.setMessage("Please input the song title")
+        val input = EditText(this)
+        input.inputType = InputType.TYPE_CLASS_TEXT
+        builder.setView(input)
+        builder.setPositiveButton("Make Guess!") { _, _ ->
+            if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()].title.toLowerCase()) {
+                val builder = AlertDialog.Builder(this)
+                builder.setTitle("Nice one, you guessed correctly!")
+                builder.setMessage("View the full lyrics, share with your friends or move to the next song?")
+                builder.setPositiveButton("Next Song") { _, _ ->
+                    val intent = Intent(this, MapsActivity::class.java)
+                    startActivity(intent)
+                }
+                builder.setNegativeButton("View Lyrics") { _, _ ->
+                    val intent = Intent(this, SongDetailActivity::class.java)
+                    intent.putExtra("SONG", songs[com.example.glenmerry.songle.songToPlayIndexString.toInt()])
+                    startActivity(intent)
+                }
+                builder.setNeutralButton("Share") { _, _ ->
+                    val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
+                    sharingIntent.type = "text/plain"
+                    sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
+                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked Bohemian Rhapsody by Queen on Songle!")
+                    startActivity(Intent.createChooser(sharingIntent, "Share via"))
+                }
+                builder.show()
+            } else {
+                //toast("Guess incorrect, please try again")
+                val builder = AlertDialog.Builder(this)
+                builder.setTitle("Sorry, that's not quite right")
+                builder.setMessage("Guess again?")
+                builder.setPositiveButton("Guess again") { _, _ ->
+                    makeGuess()
+                }
+                builder.setNegativeButton("Back to map") { dialog, _ ->
+                    dialog.cancel()
+                }
+                builder.show()
+            }
+        }
+        builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+        builder.show()
     }
 }
