@@ -20,5 +20,6 @@
     <string name="buttonSetTarget">Set new walking target</string>
     <string name="action_collect_distance_pref">Monitor walking distance</string>
     <string name="action_collect_distance_reset">Reset distance walked</string>
+    <string name="difficulty_info"><b>Beginner:</b>\nWords classified as boring, not boring, interesting or very interesting\nAll words are displayed\n\n<b>Easy:</b>\nWords classified as boring, not boring or interesting\nAll words are displayed\n\n<b>Medium:</b>\nWords classified as boring, not boring or interesting\nOnly 75% of words are displayed\n\n<b>Hard:</b>\nWords classified as boring or not boring\nOnly 50% of words are displayed\n\n<b>Impossible:</b>\nWords unclassified\nOnly 25% of words are displayed</string>
 
 </resources>

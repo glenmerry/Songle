@@ -1,10 +1,12 @@
 package com.example.glenmerry.songle
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
+import android.support.design.widget.Snackbar
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.support.v4.content.ContextCompat.checkSelfPermission
@@ -13,6 +15,7 @@ import android.support.v7.app.AppCompatActivity
 import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.EditText
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
@@ -26,9 +29,13 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.maps.android.data.Feature
+import com.google.maps.android.data.Layer
 import com.google.maps.android.data.kml.KmlLayer
 import org.jetbrains.anko.activityUiThread
 import org.jetbrains.anko.alert
+import org.jetbrains.anko.design.longSnackbar
+import org.jetbrains.anko.design.snackbar
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
 import java.net.HttpURLConnection
@@ -60,7 +67,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 return true
             }
             item.itemId == R.id.action_lyrics_list -> {
-                val intent = Intent(this, LyricsFoundActivity::class.java)
+                val intent = Intent(this, WordsFoundActivity::class.java)
                 //intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
                 startActivity(intent)
                 return true
@@ -73,7 +80,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 toast("Skip this song")
                 return true
             }
-            item.itemId == R.id.action_hint -> {
+            /*item.itemId == R.id.action_hint -> {
                 alert("Want a hint?") {
                     positiveButton("Yes please!") {
                         alert("\n\"Magnifico\"\n\nThink you've got it now?","Here's a word that might help...") {
@@ -84,7 +91,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     negativeButton("No I'm fine thanks") {}
                 }.show()
                 return true
-            }
+            }*/
             else -> return false
         }
     }
@@ -147,18 +154,30 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
             activityUiThread {
                 layer.addLayerToMap()
+
+                /*layer.setOnFeatureClickListener(object: Layer.OnFeatureClickListener {
+                    override fun onFeatureClick(feature: Feature) {
+                        feature.getProperty("name")
+                        println(feature.properties)
+
+                        val coordinates = feature.getProperty("point")
+
+                        toast("${feature.id} ${feature.getProperty("name")} clicked")
+                    }
+                })*/
             }
         }
-        val mGeorgeSq = mMap.addMarker(MarkerOptions()
+        /*val mGeorgeSq = mMap.addMarker(MarkerOptions()
                 .position(LatLng(55.9436125635442, -3.18878173828125))
                 .title("New word!")
                 .snippet("Galileo"))
         mGeorgeSq.tag = 0
-        mMap.setOnMarkerClickListener(this)
+        mMap.setOnMarkerClickListener(this)*/
     }
 
     override fun onMarkerClick(marker: Marker): Boolean {
-        toast("marker clicked")
+
+        Snackbar.make(findViewById(R.id.map), "You've unlocked a new word! - Galileo", Snackbar.LENGTH_INDEFINITE).show()
         return false
     }
 
@@ -236,6 +255,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 negativeButton("Back to map") {}
             } .show()
         }
+
+        val snackbar = Snackbar
+                .make(findViewById(R.id.map), "Nearest word is 5m away", Snackbar.LENGTH_INDEFINITE)
+                .setAction("COLLECT") {
+
+                }.show()
     }
 
     override fun onConnectionSuspended(flag : Int) {
@@ -247,6 +272,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         // could not be established. Display an error message, or handle
         // the failure silently
         println(" >>>> onConnectionFailed")
+    }
+
+    override fun onBackPressed() {
+        val intent = Intent()
+        intent.putExtra("RETURNDIST", distanceWalked.toInt())
+        setResult(Activity.RESULT_OK, intent)
+        finish()
     }
 
     private fun makeGuess() {

@@ -38,5 +38,6 @@ dependencies {
     compile 'com.google.android.gms:play-services-location:11.4.0'
     compile 'com.google.maps.android:android-maps-utils:0.5+'
     compile "org.jetbrains.anko:anko-commons:0.10.2"
+    compile "org.jetbrains.anko:anko-design:0.10.2"
 
 }

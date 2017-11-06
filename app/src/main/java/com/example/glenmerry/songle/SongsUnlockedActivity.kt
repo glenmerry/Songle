@@ -14,7 +14,7 @@ import org.jetbrains.anko.toast
 class SongsUnlockedActivity : AppCompatActivity() {
 
     private lateinit var songs: ArrayList<Song>
-    private lateinit var songsFound: ArrayList<Song>
+    private lateinit var songsUnlocked: ArrayList<Song>
     private var artistAndTitles = ArrayList<String>()
     private lateinit var indexInSongs: ArrayList<Int>
     private var favourites = arrayListOf<Song>()
@@ -59,7 +59,7 @@ class SongsUnlockedActivity : AppCompatActivity() {
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
         songs = intent.extras.getParcelableArrayList("SONGS")
-        songsFound = intent.extras.getParcelableArrayList("SONGSFOUND")
+        songsUnlocked = intent.extras.getParcelableArrayList("SONGSUNLOCKED")
         indexInSongs = arrayListOf()
 
         for (i in 6..9) {
@@ -67,7 +67,7 @@ class SongsUnlockedActivity : AppCompatActivity() {
         }
 
         for (i in songs.indices) {
-            if (songsFound.contains(songs[i])) {
+            if (songsUnlocked.contains(songs[i])) {
                 artistAndTitles.add("${songs[i].artist} - ${songs[i].title}")
                 indexInSongs.add(i)
             } else {
@@ -129,4 +129,3 @@ class SongsUnlockedActivity : AppCompatActivity() {
         }
     }
 }
-

@@ -1,11 +1,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-
-    <item
-        android:id="@+id/action_reset"
-        android:title="@string/action_reset_game"
-        app:showAsAction="never"/>
-
+    
     <item
         android:id="@+id/action_collect_distance_pref"
         android:title="@string/action_collect_distance_pref"
@@ -17,6 +12,17 @@
         android:id="@+id/action_collect_distance_reset"
         android:title="@string/action_collect_distance_reset"
         app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_reset"
+        android:title="@string/action_reset_game"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/action_help"
+        android:icon="@drawable/ic_help_white_24px"
+        android:title="Help"
+        app:showAsAction="ifRoom" />
 
 
 </menu>

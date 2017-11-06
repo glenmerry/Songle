@@ -90,7 +90,7 @@ class SongDetailActivity : AppCompatActivity() {
                 favourites.remove(song)
                 fab.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.ic_favorite_border_white_24px))
             } else {
-                toast("$title marked as favourite")
+                toast("${song.title} marked as favourite")
                 favourites.add(song)
                 fab.setImageDrawable(ContextCompat.getDrawable(this, R.drawable.ic_favorite_white_24px))
             }
