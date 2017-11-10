@@ -22,9 +22,10 @@ class WordsFoundActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_words_found)
 
-        wordsFound.put("13:0", "Mama")
+        /*wordsFound.put("13:0", "Mama")
         wordsFound.put("28:8", "truth")
-        wordsFound.put("3:4", "landslide")
+        wordsFound.put("3:4", "landslide")*/
+
 
         doAsync {
             val url = URL(("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/01/lyrics.txt"))
@@ -70,7 +71,7 @@ class WordsFoundActivity : AppCompatActivity() {
                     newLyrics.append("$line\n")
                 }
 
-                textViewWords.text = newLyrics
+                textViewWords.text = blockedOut
 
             }
         }

@@ -113,7 +113,7 @@ class MainActivity : AppCompatActivity() {
                 for (song in songs) {
                     println(song)
                 }
-                for (i in 0..10 step 2) {
+                for (i in 10..17) {
                     songsUnlocked.add(songs[i])
                 }
 
@@ -174,8 +174,8 @@ class MainActivity : AppCompatActivity() {
         val progBarSongs = findViewById(R.id.progressBar) as ProgressBar
         val progTextSongs = findViewById(R.id.textViewProgress) as TextView
         progBarSongs.max = 18
-        progBarSongs.progress = 0
-        progTextSongs.text = "0/18 Songs Unlocked"
+        progBarSongs.progress = 7
+        progTextSongs.text = "7/18 Songs Unlocked"
 
         if (walkingTarget != 0) {
             progBarDist.max = walkingTarget

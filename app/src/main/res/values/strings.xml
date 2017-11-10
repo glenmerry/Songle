@@ -4,7 +4,7 @@
     <string name="title_activity_main">MainActivity</string>
     <string name="title_activity_select_difficulty">SelectDifficultyActivity</string>
     <string name="action_favorite">Mark song as favourite</string>
-    <string name="action_lyrics_list">See found lyrics</string>
+    <string name="action_lyrics_list">See collected words</string>
     <string name="action_guess">Make a guess</string>
     <string name="action_skip">Skip this song</string>
     <string name="title_activity_settings">Settings</string>

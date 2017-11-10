@@ -4,6 +4,9 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
 import android.location.Location
 import android.os.Bundle
 import android.support.design.widget.Snackbar
@@ -26,6 +29,7 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
@@ -77,7 +81,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 return true
             }
             item.itemId == R.id.action_skip -> {
-                toast("Skip this song")
+                alert("Are you sure you want to skip this song?") {
+                    positiveButton("Yes please") {}
+                    negativeButton("No thanks") {}
+                }.show()
                 return true
             }
             /*item.itemId == R.id.action_hint -> {
@@ -129,6 +136,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         lastLoc.longitude = -3.188438
     }
 
+    lateinit var bmp: Bitmap
+
+
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
         val georgeSq = LatLng(55.944009, -3.188438)
@@ -141,6 +151,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             println("Security exception thrown [onMapReady]")
         }
 
+
+
         doAsync {
             val url = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/map$difficulty.kml")
             val conn = url.openConnection() as HttpURLConnection
@@ -151,6 +163,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             conn.connect()
 
             val layer = KmlLayer(mMap, conn.inputStream, applicationContext)
+
+
+            val url2 = URL("http://maps.google.com/mapfiles/kml/paddle/ylw-circle.png")
+            bmp = BitmapFactory.decodeStream(url2.openConnection().getInputStream())
+            val bmpResized = Bitmap.createScaledBitmap(bmp, 120, 120, false)
 
             activityUiThread {
                 layer.addLayerToMap()
@@ -165,14 +182,20 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                         toast("${feature.id} ${feature.getProperty("name")} clicked")
                     }
                 })*/
+
+                val mGeorgeSq = mMap.addMarker(MarkerOptions()
+                        .position(LatLng(55.9436125635442, -3.18878173828125))
+                        .icon(BitmapDescriptorFactory.fromBitmap(bmpResized))
+                        .title("Not Boring"))
+                mGeorgeSq.tag = 0
+               // mMap.setOnMarkerClickListener(this)
+
+
             }
         }
-        /*val mGeorgeSq = mMap.addMarker(MarkerOptions()
-                .position(LatLng(55.9436125635442, -3.18878173828125))
-                .title("New word!")
-                .snippet("Galileo"))
-        mGeorgeSq.tag = 0
-        mMap.setOnMarkerClickListener(this)*/
+
+
+
     }
 
     override fun onMarkerClick(marker: Marker): Boolean {
@@ -259,6 +282,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         val snackbar = Snackbar
                 .make(findViewById(R.id.map), "Nearest word is 5m away", Snackbar.LENGTH_INDEFINITE)
                 .setAction("COLLECT") {
+
+                    alert("Galileo","You collected a new word!") {
+                        negativeButton("Collected words") {
+                            val intent = Intent(applicationContext, WordsFoundActivity::class.java)
+                            startActivity(intent)
+                        }
+                        positiveButton("Make guess") {
+                            makeGuess()
+                        }
+                    }.show()
 
                 }.show()
     }
