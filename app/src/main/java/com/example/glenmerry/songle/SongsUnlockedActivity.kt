@@ -18,6 +18,7 @@ class SongsUnlockedActivity : AppCompatActivity() {
     private var artistAndTitles = ArrayList<String>()
     private lateinit var indexInSongs: ArrayList<Int>
     private var favourites = arrayListOf<Song>()
+    private lateinit var adapter: ArrayAdapter<String>
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_songs_unlocked, menu)
@@ -36,11 +37,9 @@ class SongsUnlockedActivity : AppCompatActivity() {
                 val indexInSongsFav = ArrayList<Int>()
                 for (fav in favourites) {
                     artistAndTitlesFav.add("${fav.artist} - ${fav.title}")
-                    for (song in songs) {
-                        if (song.title == fav.title) {
-                            indexInSongsFav.add(songs.indexOf(song))
-                        }
-                    }
+                    songs
+                            .filter { it.title == fav.title }
+                            .mapTo(indexInSongsFav) { songs.indexOf(it) }
                 }
                 showList(artistAndTitlesFav, indexInSongsFav)
             } else {
@@ -60,11 +59,8 @@ class SongsUnlockedActivity : AppCompatActivity() {
 
         songs = intent.extras.getParcelableArrayList("SONGS")
         songsUnlocked = intent.extras.getParcelableArrayList("SONGSUNLOCKED")
+        favourites = intent.extras.getParcelableArrayList("FAVOURITESONGS")
         indexInSongs = arrayListOf()
-
-        for (i in 6..9) {
-            favourites.add(songs[i])
-        }
 
         for (i in songs.indices) {
             if (songsUnlocked.contains(songs[i])) {
@@ -96,13 +92,17 @@ class SongsUnlockedActivity : AppCompatActivity() {
         showList(artistAndTitles, indexInSongs)
     }
 
+    override fun onBackPressed() {
+        val intent = Intent()
+        intent.putParcelableArrayListExtra("RETURNFAV", favourites)
+        setResult(Activity.RESULT_OK, intent)
+        finish()
+    }
+
     private fun showList(artistAndTitles: ArrayList<String>, indexInSongs: ArrayList<Int>) {
         val listView = findViewById(R.id.list) as ListView
-        val adapter = ArrayAdapter<String>(this, R.layout.songs_unlocked_list_item, artistAndTitles)
+        adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, artistAndTitles)
         listView.adapter = adapter
-        val image: Drawable = this.resources.getDrawable( R.drawable.ic_lock_open_white_24px)
-        val textView = adapter.getView(1, null, listView) as TextView
-        textView.setCompoundDrawablesWithIntrinsicBounds(null, null, image, null)
         listView.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
             if (artistAndTitles[i] != "\uD83D\uDD12") {
                 val intent = Intent(this, SongDetailActivity::class.java)
@@ -118,12 +118,17 @@ class SongsUnlockedActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         if (requestCode == 1) {
             if (resultCode == Activity.RESULT_OK) {
-                val newFavourites: ArrayList<Song> = data.getParcelableArrayListExtra("RETURNFAV")
-                if (newFavourites != favourites) {
-                    favourites = newFavourites
-                    toast("favourites updated!")
-                    supportActionBar!!.title = "Songs Unlocked"
-                    showList(artistAndTitles, indexInSongs)
+                favourites = data.getParcelableArrayListExtra("RETURNFAV")
+                if (supportActionBar!!.title == "Favourite Songs") {
+                    val artistAndTitlesFav = arrayListOf<String>()
+                    val indexInSongsFav = ArrayList<Int>()
+                    for (fav in favourites) {
+                        artistAndTitlesFav.add("${fav.artist} - ${fav.title}")
+                        songs
+                                .filter { it.title == fav.title }
+                                .mapTo(indexInSongsFav) { songs.indexOf(it) }
+                    }
+                    showList(artistAndTitlesFav, indexInSongsFav)
                 }
             }
         }

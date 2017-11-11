@@ -1,5 +1,6 @@
 package com.example.glenmerry.songle
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.support.v7.app.AlertDialog
@@ -17,10 +18,18 @@ import java.net.URL
 class WordsFoundActivity : AppCompatActivity() {
 
     private val wordsFound = HashMap<String, String>()
+    private var songs = arrayListOf<Song>()
+    private var songToPlayIndexString = "01"
+    private var guessCount = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_words_found)
+
+        songs = intent.extras.getParcelableArrayList("SONGS")
+        songToPlayIndexString = intent.extras.getString("SONGTOPLAY")
+        guessCount = intent.extras.getInt("GUESSCOUNT")
+        toast(guessCount)
 
         /*wordsFound.put("13:0", "Mama")
         wordsFound.put("28:8", "truth")
@@ -93,6 +102,13 @@ class WordsFoundActivity : AppCompatActivity() {
         return false
     }
 
+    override fun onBackPressed() {
+        val intent = Intent()
+        intent.putExtra("RETURNGUESSCOUNT", guessCount)
+        setResult(Activity.RESULT_OK, intent)
+        finish()
+    }
+
     private fun makeGuess() {
         //toast(song.title.toLowerCase())
 
@@ -127,6 +143,8 @@ class WordsFoundActivity : AppCompatActivity() {
                 builder.show()
             } else {
                 val builder = AlertDialog.Builder(this)
+                guessCount++
+                toast(guessCount)
                 builder.setTitle("Sorry, that's not quite right")
                 builder.setMessage("Guess again?")
                 builder.setPositiveButton("Guess again") { dialog, which ->

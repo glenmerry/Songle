@@ -1,7 +1,10 @@
 package com.example.glenmerry.songle
 
 import android.app.Activity
-import android.content.*
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.os.Bundle
@@ -12,7 +15,6 @@ import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -26,10 +28,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 
-var songs = listOf<Song>()
-val songsUnlocked: ArrayList<Song> = ArrayList()
-var songToPlayIndexString = "01"
-
 class MainActivity : AppCompatActivity() {
 
     // The BroadcastReceiver that tracks network connectivity changes.
@@ -37,15 +35,26 @@ class MainActivity : AppCompatActivity() {
     private var connectionLost = false
     private var selectedDifficulty: Int? = null
     private val difficulties = listOf("Beginner", "Easy", "Medium", "Hard", "Impossible")
-    private var walkingTarget: Int = 200
+    private var walkingTarget: Int? = null
     private var walkingTargetWithUnit = String()
-    private var distanceWalked = 15
+    private var distanceWalked = 0
     private var distanceWalkedWithUnit = String()
-    private lateinit var progBarDist: ProgressBar
-    private lateinit var progTextDist: TextView
+    private val prefsFile = "MyPrefsFile" // for storing preferences
+    private var distanceWakedHidden = false
+    private var titlesUnlockedLoad = mutableSetOf<String>()
+    private var titlesFavLoad = mutableSetOf<String>()
+    private var favourites = arrayListOf<Song>()
+    private var songsSkipped = arrayListOf<Song>()
+
+    private var songs = listOf<Song>()
+    private val songsUnlocked: ArrayList<Song> = ArrayList()
+    private var songToPlayIndexString = "01"
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_main, menu)
+        if (distanceWakedHidden) {
+            menu.getItem(0).isChecked = false
+        }
         return true
     }
 
@@ -53,37 +62,50 @@ class MainActivity : AppCompatActivity() {
         return when (item.itemId) {
             R.id.action_reset -> {
                 alert("All progress will be lost!", "Are you sure you want to reset the game?") {
-                    positiveButton("Yes, I'm sure") {}
+                    positiveButton("Yes, I'm sure") {
+                        songsUnlocked.clear()
+                        progressBar.progress = songsUnlocked.size
+                        textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
+                        selectedDifficulty = null
+                        textViewShowDiff.text = ""
+                        distanceWalked = 0
+                        walkingTarget = null
+                        walkingTargetWithUnit = ""
+                    }
                     negativeButton("No, abort") {}
                 }.show()
                 true
             }
             R.id.action_collect_distance_pref -> {
-                val buttonWalkTarget = findViewById(R.id.buttonSetTarget) as Button
-                val progBarWalking = findViewById(R.id.progressBarWalkingTarget) as ProgressBar
-                val textWalkTarget = findViewById(R.id.textViewProgressWalkingTarget) as TextView
                 item.isChecked = !item.isChecked
+                distanceWakedHidden = !distanceWakedHidden
                 if (item.isChecked) {
-                    buttonWalkTarget.visibility = View.VISIBLE
-                    progBarWalking.visibility = View.VISIBLE
-                    textWalkTarget.visibility = View.VISIBLE
+                    buttonSetTarget.visibility = View.VISIBLE
+                    progressBarWalkingTarget.visibility = View.VISIBLE
+                    textViewProgressWalkingTarget.visibility = View.VISIBLE
                 } else {
-                    buttonWalkTarget.visibility = View.GONE
-                    progBarWalking.visibility = View.GONE
-                    textWalkTarget.visibility = View.GONE
+                    buttonSetTarget.visibility = View.GONE
+                    progressBarWalkingTarget.visibility = View.GONE
+                    textViewProgressWalkingTarget.visibility = View.GONE
                 }
                 true
             }
             R.id.action_collect_distance_reset -> {
                 alert("Distance walked data and target will be lost!", "Are you sure you want to reset distance walked?") {
-                    positiveButton("Yes, I'm sure") {}
+                    positiveButton("Yes, I'm sure") {
+                        distanceWalked = 0
+                    }
                     negativeButton("No, abort") {}
                 }.show()
                 true
             }
             R.id.action_help -> {
-                val intent = Intent(this, HelpActivity::class.java)
+                /*val intent = Intent(this, HelpActivity::class.java)
                 startActivity(intent)
+                true*/
+                songsUnlocked.add(songs[randomSongIndex(0, 18)])
+                progressBar.progress = songsUnlocked.size
+                textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -98,9 +120,6 @@ class MainActivity : AppCompatActivity() {
         val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
         this.registerReceiver(receiver, filter)
 
-        progBarDist = findViewById(R.id.progressBarWalkingTarget) as ProgressBar
-        progTextDist = findViewById(R.id.textViewProgressWalkingTarget) as TextView
-
         doAsync {
             try {
                 loadXmlFromNetwork("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
@@ -111,11 +130,17 @@ class MainActivity : AppCompatActivity() {
             }
             activityUiThread {
                 for (song in songs) {
+                    if (titlesUnlockedLoad.contains(song.title)) {
+                        songsUnlocked.add(song)
+                    }
+                    if (titlesFavLoad.contains(song.title)) {
+                        favourites.add(song)
+                    }
                     println(song)
                 }
-                for (i in 10..17) {
-                    songsUnlocked.add(songs[i])
-                }
+                progressBar.max = songs.size
+                progressBar.progress = songsUnlocked.size
+                textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
 
                 var songToPlayIndex = randomSongIndex(0, songs.size)
                 while (songsUnlocked.contains(songs[songToPlayIndex])) {
@@ -131,37 +156,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         buttonPlay.setOnClickListener {
-
-            /*val lm = this.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-            var gpsEnabled = false
-            try {
-                gpsEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
-            } catch (exception: Exception) {}
-
-            if (!gpsEnabled) {
-                alert("Location services are required for the Songle map, please turn them on!") {
-                    positiveButton("OK") {}
-                }.show()
-            } else {*/
-
-                if (selectedDifficulty != null) {
+            if (selectedDifficulty != null) {
+                val intent = Intent(this, MapsActivity::class.java)
+                intent.putExtra("DIFFICULTY", selectedDifficulty!!)
+                intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
+                intent.putExtra("SONGTOPLAY", songToPlayIndexString)
+                intent.putExtra("SONGSSKIPPED", songsSkipped)
+                startActivityForResult(intent, 1)
+            } else {
+                selector("Please select a difficulty", difficulties, { _, i ->
+                    selectedDifficulty = (5-i)
+                    textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
                     val intent = Intent(this, MapsActivity::class.java)
                     intent.putExtra("DIFFICULTY", selectedDifficulty!!)
                     intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
                     intent.putExtra("SONGTOPLAY", songToPlayIndexString)
+                    intent.putExtra("SONGSSKIPPED", songsSkipped)
                     startActivityForResult(intent, 1)
-                } else {
-                    selector("Please select a difficulty", difficulties, { _, i ->
-                        selectedDifficulty = (5-i)
-                        textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
-                        val intent = Intent(this, MapsActivity::class.java)
-                        intent.putExtra("DIFFICULTY", selectedDifficulty!!)
-                        intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
-                        intent.putExtra("SONGTOPLAY", songToPlayIndexString)
-                        startActivityForResult(intent, 1)
-                    })
-                }
-            //}
+                })
+            }
         }
 
         buttonSelectDifficulty.setOnClickListener {
@@ -171,31 +184,25 @@ class MainActivity : AppCompatActivity() {
             })
         }
 
-        val progBarSongs = findViewById(R.id.progressBar) as ProgressBar
-        val progTextSongs = findViewById(R.id.textViewProgress) as TextView
-        progBarSongs.max = 18
-        progBarSongs.progress = 7
-        progTextSongs.text = "7/18 Songs Unlocked"
-
-        if (walkingTarget != 0) {
-            progBarDist.max = walkingTarget
-            if (distanceWalked < walkingTarget) {
-                progBarDist.progress = distanceWalked
+        if (walkingTarget != null) {
+            progressBarWalkingTarget.max = walkingTarget!!
+            if (distanceWalked < walkingTarget!!) {
+                progressBarWalkingTarget.progress = distanceWalked
                 distanceWalkedWithUnit = if (distanceWalked < 1000) {
                     "${distanceWalked}m"
                 } else {
                     "${distanceWalked / 1000}km"
                 }
-                progTextDist.text = "You have walked $distanceWalkedWithUnit of your $walkingTargetWithUnit target!"
+                textViewProgressWalkingTarget.text = "You have walked $distanceWalkedWithUnit of your $walkingTargetWithUnit target!"
             } else {
-                progBarDist.progress = walkingTarget
-                progTextDist.text = "Congratulations you've reached your walking target of $walkingTarget, set a new one?"
+                progressBarWalkingTarget.progress = walkingTarget!!
+                textViewProgressWalkingTarget.text = "Congratulations you've reached your walking target of $walkingTarget, set a new one?"
             }
         }
-
-        progBarDist.max = 1000
-        progBarDist.progress = 420
-        progTextDist.text = "420m walked of 1km target!\n2.5km total walked while playing Songle!"
+/*
+        progressBarWalkingTarget.max = 1000
+        progressBarWalkingTarget.progress = 420
+        textViewProgressWalkingTarget.text = "420m walked of 1km target!\n2.5km total walked while playing Songle!"*/
 
         buttonSetTarget.setOnClickListener {
             val alert = AlertDialog.Builder(this)
@@ -204,19 +211,17 @@ class MainActivity : AppCompatActivity() {
             input.inputType = InputType.TYPE_CLASS_NUMBER
             input.setRawInputType(Configuration.KEYBOARD_12KEY)
             alert.setView(input)
-            alert.setPositiveButton("Set", { dialog, whichButton ->
+            alert.setPositiveButton("Set", { _, _ ->
                 walkingTarget = input.text.toString().toInt()
-                walkingTargetWithUnit = if (walkingTarget < 1000) {
+                walkingTargetWithUnit = if (walkingTarget!! < 1000) {
                     "${walkingTarget}m"
                 } else {
-                    "${BigDecimal(walkingTarget.toDouble()/1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+                    "${BigDecimal(walkingTarget!!.toDouble()/1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
                 }
-                progBarDist.max = walkingTarget
-                progTextDist.text = "You have walked $distanceWalkedWithUnit of your $walkingTargetWithUnit target!"
+                progressBarWalkingTarget.max = walkingTarget!!
+                textViewProgressWalkingTarget.text = "You have walked $distanceWalkedWithUnit of your $walkingTargetWithUnit target!"
             })
-            alert.setNegativeButton("Cancel", { dialog, whichButton ->
-
-            })
+            alert.setNegativeButton("Cancel", { _, _ -> })
             alert.show()
         }
 
@@ -225,8 +230,65 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, SongsUnlockedActivity::class.java)
             intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
             intent.putParcelableArrayListExtra("SONGSUNLOCKED", songsUnlocked)
-            startActivity(intent)
+            intent.putParcelableArrayListExtra("FAVOURITESONGS", favourites)
+            startActivityForResult(intent, 2)
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        // Restore preferences
+        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
+        distanceWakedHidden = settings.getBoolean("storedDistanceWalkedHidden", false)
+        selectedDifficulty = settings.getInt("storedSelectedDifficulty", 6)
+        if (selectedDifficulty == 6) {
+            selectedDifficulty = null
+        } else {
+            val diffString: String = when (selectedDifficulty) {
+                1 -> "Impossible"
+                2 -> "Hard"
+                3 -> "Medium"
+                4 -> "Easy"
+                5 -> "Beginner"
+                else -> ""
+            }
+            textViewShowDiff.text = "Selected Difficulty: $diffString"
+        }
+
+        if (distanceWakedHidden) {
+            buttonSetTarget.visibility = View.GONE
+            progressBarWalkingTarget.visibility = View.GONE
+            textViewProgressWalkingTarget.visibility = View.GONE
+        }
+
+        titlesUnlockedLoad = settings.getStringSet("storedSongsUnlocked", setOf(""))
+        titlesFavLoad = settings.getStringSet("storedFavourites", setOf(""))
+    }
+
+    override fun onStop() {
+        super.onStop()
+
+        // All objects are from android.context.Context
+        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
+
+        // We need an Editor object to make preference changes.
+        val editor = settings.edit()
+        editor.putBoolean("storedDistanceWalkedHidden", distanceWakedHidden)
+        if (selectedDifficulty != null) {
+            editor.putInt("storedSelectedDifficulty", selectedDifficulty!!)
+        }
+
+        val titlesUnlocked = songsUnlocked
+                .map { it.title }
+                .toSet()
+        editor.putStringSet("storedSongsUnlocked", titlesUnlocked)
+
+        val titlesFav = favourites
+                .map { it.title }
+                .toSet()
+        editor.putStringSet("storedFavourites", titlesFav)
+        editor.apply()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
@@ -234,16 +296,25 @@ class MainActivity : AppCompatActivity() {
             if (resultCode == Activity.RESULT_OK) {
                 val distToAdd: Int = data.getIntExtra("RETURNDIST", 0)
                 distanceWalked += distToAdd
-                if (distanceWalked < walkingTarget) {
-                    progBarDist.progress = distanceWalked
+               /* if (distanceWalked < walkingTarget) {
+                    progressBarWalkingTarget.progress = distanceWalked
                     distanceWalkedWithUnit = if (distanceWalked < 1000) {
                         "${distanceWalked}m"
                     } else {
                         "${distanceWalked / 1000}km"
                     }
-                    progTextDist.text = "You have walked $distanceWalkedWithUnit of your $walkingTargetWithUnit target!"
-                }
+                    textViewProgressWalkingTarget.text = "You have walked $distanceWalkedWithUnit of your $walkingTargetWithUnit target!"
+                }*/
                 toast("Distance walked updated")
+
+                songsSkipped = data.getParcelableArrayListExtra("RETURNSONGSSKIPPED")
+                for (skips in songsSkipped) {
+                    toast("${skips.title} has been skipped")
+                }
+            }
+        } else if (requestCode == 2) {
+            if (resultCode == Activity.RESULT_OK) {
+                favourites = data.getParcelableArrayListExtra("RETURNFAV")
             }
         }
     }

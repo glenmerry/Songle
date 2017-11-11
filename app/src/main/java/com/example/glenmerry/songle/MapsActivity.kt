@@ -58,9 +58,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var songToPlayIndexString = "01"
     private var distanceWalked = 0.toFloat()
     private lateinit var lastLoc: Location
+    private var songs = arrayListOf<Song>()
+    private var targetMet = false
+    private var songsSkipped = arrayListOf<Song>()
+    private var guessCount = 0
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_maps, menu)
+        if (guessCount < 3) {
+            menu.getItem(1).isVisible = false
+        }
         return true
     }
 
@@ -72,8 +79,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             }
             item.itemId == R.id.action_lyrics_list -> {
                 val intent = Intent(this, WordsFoundActivity::class.java)
-                //intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
-                startActivity(intent)
+                intent.putExtra("SONGTOPLAY", songToPlayIndexString)
+                intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
+                intent.putExtra("GUESSCOUNT", guessCount)
+                toast(guessCount)
+                //startActivity(intent)
                 return true
             }
             item.itemId == R.id.action_guess -> {
@@ -82,12 +92,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             }
             item.itemId == R.id.action_skip -> {
                 alert("Are you sure you want to skip this song?") {
-                    positiveButton("Yes please") {}
+                    positiveButton("Yes please") {
+                        songsSkipped.add(songs[songToPlayIndexString.toInt()])
+                        toast("Skipped song ${songs[songToPlayIndexString.toInt()].title}")
+                    }
                     negativeButton("No thanks") {}
                 }.show()
                 return true
             }
-            /*item.itemId == R.id.action_hint -> {
+            item.itemId == R.id.action_hint -> {
                 alert("Want a hint?") {
                     positiveButton("Yes please!") {
                         alert("\n\"Magnifico\"\n\nThink you've got it now?","Here's a word that might help...") {
@@ -98,7 +111,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     negativeButton("No I'm fine thanks") {}
                 }.show()
                 return true
-            }*/
+            }
             else -> return false
         }
     }
@@ -112,8 +125,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
         difficulty = intent.extras.getInt("DIFFICULTY")
-        val songs: ArrayList<Song> = intent.extras.getParcelableArrayList("SONGS")
-        val songToPlayIndexString = intent.extras.getString("SONGTOPLAY")
+        songs = intent.extras.getParcelableArrayList("SONGS")
+        songToPlayIndexString = intent.extras.getString("SONGTOPLAY")
+        songsSkipped = intent.extras.getParcelableArrayList("SONGSSKIPPED")
 
         toast("Playing song: ${songs[songToPlayIndexString.toInt()].title}")
 
@@ -136,7 +150,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         lastLoc.longitude = -3.188438
     }
 
-    lateinit var bmp: Bitmap
+    private lateinit var bmp: Bitmap
 
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -150,8 +164,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         } catch (se: SecurityException) {
             println("Security exception thrown [onMapReady]")
         }
-
-
 
         doAsync {
             val url = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/map$difficulty.kml")
@@ -193,9 +205,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
             }
         }
-
-
-
     }
 
     override fun onMarkerClick(marker: Marker): Boolean {
@@ -258,7 +267,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         distanceWalked += current!!.distanceTo(lastLoc)
         lastLoc = current
         toast("distance changed to $distanceWalked")
-        if (distanceWalked > 1000) {
+        if (distanceWalked > 1000 && targetMet == false) {
+            targetMet = true
             alert("You hit your walking target of 1km", "Congratulations!") {
                 positiveButton("Set new target") {
                     /*val alert = AlertDialog.Builder(Context(MapsActivity))
@@ -310,8 +320,21 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     override fun onBackPressed() {
         val intent = Intent()
         intent.putExtra("RETURNDIST", distanceWalked.toInt())
+        intent.putParcelableArrayListExtra("RETURNSONGSSKIPPED", songsSkipped)
         setResult(Activity.RESULT_OK, intent)
         finish()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+        if (requestCode == 1) {
+            if (resultCode == Activity.RESULT_OK) {
+                guessCount = data.getIntExtra("RETURNGUESSCOUNT", guessCount)
+                if (guessCount >= 3) {
+                    invalidateOptionsMenu()
+                    toast(guessCount)
+                }
+            }
+        }
     }
 
     private fun makeGuess() {
@@ -332,7 +355,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 }
                 builder.setNegativeButton("View Lyrics") { _, _ ->
                     val intent = Intent(this, SongDetailActivity::class.java)
-                    intent.putExtra("SONG", songs[com.example.glenmerry.songle.songToPlayIndexString.toInt()])
+                    intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
                     startActivity(intent)
                 }
                 builder.setNeutralButton("Share") { _, _ ->
@@ -344,7 +367,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 }
                 builder.show()
             } else {
-                //toast("Guess incorrect, please try again")
+                guessCount++
+                if (guessCount == 3) {
+                    invalidateOptionsMenu()
+                }
                 val builder = AlertDialog.Builder(this)
                 builder.setTitle("Sorry, that's not quite right")
                 builder.setMessage("Guess again?")
