@@ -22,42 +22,37 @@ import android.view.LayoutInflater
 class SongDetailActivity : AppCompatActivity() {
 
     private lateinit var song: Song
-    lateinit var favourites: ArrayList<Song>
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_song_detail, menu)
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when {
-            item.itemId == android.R.id.home -> {
-                onBackPressed()
-                true
-            }
-            item.itemId == R.id.action_share -> {
-                toast("share song")
-                val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
-                sharingIntent.type = "text/plain"
-                sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
-                sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked ${song.title} by ${song.artist} on Songle!")
-                startActivity(Intent.createChooser(sharingIntent, "Share via"))
-                true
-            }
-            item.itemId == R.id.action_play -> {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(song.link)))
-                true
-            }
-            else -> false
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
+        item.itemId == android.R.id.home -> {
+            onBackPressed()
+            true
         }
+        item.itemId == R.id.action_share -> {
+            val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
+            sharingIntent.type = "text/plain"
+            sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
+            sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked ${song.title} by ${song.artist} on Songle!")
+            startActivity(Intent.createChooser(sharingIntent, "Share via"))
+            true
+        }
+        item.itemId == R.id.action_play -> {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(song.link)))
+            true
+        }
+        else -> false
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_song_detail)
 
-        song = intent.extras.getParcelable("SONG")
-        favourites = intent.extras.getParcelableArrayList("FAVOURITES")
+        song = intent.extras.getParcelable("song")
 
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
@@ -74,8 +69,6 @@ class SongDetailActivity : AppCompatActivity() {
             supportActionBar!!.customView = v
 
         }
-
-        textViewLyrics.movementMethod = ScrollingMovementMethod()
 
         val fab = findViewById(R.id.fav_fab) as FloatingActionButton
         if (favourites.contains(song)) {
@@ -108,7 +101,7 @@ class SongDetailActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         val intent = Intent()
-        intent.putParcelableArrayListExtra("RETURNFAV", favourites)
+        intent.putParcelableArrayListExtra("returnFavourites", favourites)
         setResult(Activity.RESULT_OK, intent)
         finish()
     }

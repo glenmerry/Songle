@@ -63,7 +63,7 @@
             android:parentActivityName=".MapsActivity"
             android:theme="@style/AppTheme" />
         <activity
-            android:name=".WordsFoundActivity"
+            android:name=".WordsCollectedActivity"
             android:label="Words Collected"
             android:parentActivityName=".MapsActivity"
             android:theme="@style/AppTheme" />

@@ -28,6 +28,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 
+var favourites = arrayListOf<Song>()
+
 class MainActivity : AppCompatActivity() {
 
     // The BroadcastReceiver that tracks network connectivity changes.
@@ -43,9 +45,8 @@ class MainActivity : AppCompatActivity() {
     private var distanceWakedHidden = false
     private var titlesUnlockedLoad = mutableSetOf<String>()
     private var titlesFavLoad = mutableSetOf<String>()
-    private var favourites = arrayListOf<Song>()
-    private var songsSkipped = arrayListOf<Song>()
 
+    private var songsSkipped = arrayListOf<Song>()
     private var songs = listOf<Song>()
     private val songsUnlocked: ArrayList<Song> = ArrayList()
     private var songToPlayIndexString = "01"
@@ -58,59 +59,59 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_reset -> {
-                alert("All progress will be lost!", "Are you sure you want to reset the game?") {
-                    positiveButton("Yes, I'm sure") {
-                        songsUnlocked.clear()
-                        progressBar.progress = songsUnlocked.size
-                        textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
-                        selectedDifficulty = null
-                        textViewShowDiff.text = ""
-                        distanceWalked = 0
-                        walkingTarget = null
-                        walkingTargetWithUnit = ""
-                    }
-                    negativeButton("No, abort") {}
-                }.show()
-                true
-            }
-            R.id.action_collect_distance_pref -> {
-                item.isChecked = !item.isChecked
-                distanceWakedHidden = !distanceWakedHidden
-                if (item.isChecked) {
-                    buttonSetTarget.visibility = View.VISIBLE
-                    progressBarWalkingTarget.visibility = View.VISIBLE
-                    textViewProgressWalkingTarget.visibility = View.VISIBLE
-                } else {
-                    buttonSetTarget.visibility = View.GONE
-                    progressBarWalkingTarget.visibility = View.GONE
-                    textViewProgressWalkingTarget.visibility = View.GONE
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.action_reset -> {
+            alert("All progress will be lost!", "Are you sure you want to reset the game?") {
+                positiveButton("Yes, I'm sure") {
+                    songsUnlocked.clear()
+                    progressBar.progress = songsUnlocked.size
+                    textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
+                    selectedDifficulty = null
+                    textViewShowDiff.text = ""
+                    distanceWalked = 0
+                    walkingTarget = null
+                    walkingTargetWithUnit = ""
                 }
-                true
-            }
-            R.id.action_collect_distance_reset -> {
-                alert("Distance walked data and target will be lost!", "Are you sure you want to reset distance walked?") {
-                    positiveButton("Yes, I'm sure") {
-                        distanceWalked = 0
-                    }
-                    negativeButton("No, abort") {}
-                }.show()
-                true
-            }
-            R.id.action_help -> {
-                /*val intent = Intent(this, HelpActivity::class.java)
-                startActivity(intent)
-                true*/
-                songsUnlocked.add(songs[randomSongIndex(0, 18)])
-                progressBar.progress = songsUnlocked.size
-                textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+                negativeButton("No, abort") {}
+            }.show()
+            true
         }
+        R.id.action_collect_distance_pref -> {
+            item.isChecked = !item.isChecked
+            distanceWakedHidden = !distanceWakedHidden
+            if (item.isChecked) {
+                buttonSetTarget.visibility = View.VISIBLE
+                progressBarWalkingTarget.visibility = View.VISIBLE
+                textViewProgressWalkingTarget.visibility = View.VISIBLE
+            } else {
+                buttonSetTarget.visibility = View.GONE
+                progressBarWalkingTarget.visibility = View.GONE
+                textViewProgressWalkingTarget.visibility = View.GONE
+            }
+            true
+        }
+        R.id.action_collect_distance_reset -> {
+            alert("Distance walked data and target will be lost!", "Are you sure you want to reset distance walked?") {
+                positiveButton("Yes, I'm sure") {
+                    distanceWalked = 0
+                }
+                negativeButton("No, abort") {}
+            }.show()
+            true
+        }
+        R.id.action_help -> {
+            /*val intent = Intent(this, HelpActivity::class.java)
+            startActivity(intent)
+            true*/
+            songsUnlocked.add(songs[randomSongIndex(0, 18)])
+            progressBar.progress = songsUnlocked.size
+            textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
+            true
+        }
+        else -> super.onOptionsItemSelected(item)
     }
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -157,22 +158,12 @@ class MainActivity : AppCompatActivity() {
 
         buttonPlay.setOnClickListener {
             if (selectedDifficulty != null) {
-                val intent = Intent(this, MapsActivity::class.java)
-                intent.putExtra("DIFFICULTY", selectedDifficulty!!)
-                intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
-                intent.putExtra("SONGTOPLAY", songToPlayIndexString)
-                intent.putExtra("SONGSSKIPPED", songsSkipped)
-                startActivityForResult(intent, 1)
+                startMaps()
             } else {
                 selector("Please select a difficulty", difficulties, { _, i ->
                     selectedDifficulty = (5-i)
                     textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
-                    val intent = Intent(this, MapsActivity::class.java)
-                    intent.putExtra("DIFFICULTY", selectedDifficulty!!)
-                    intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
-                    intent.putExtra("SONGTOPLAY", songToPlayIndexString)
-                    intent.putExtra("SONGSSKIPPED", songsSkipped)
-                    startActivityForResult(intent, 1)
+                    startMaps()
                 })
             }
         }
@@ -228,11 +219,19 @@ class MainActivity : AppCompatActivity() {
 
         buttonSongsUnlocked.setOnClickListener {
             val intent = Intent(this, SongsUnlockedActivity::class.java)
-            intent.putParcelableArrayListExtra("SONGS", ArrayList(songs))
-            intent.putParcelableArrayListExtra("SONGSUNLOCKED", songsUnlocked)
-            intent.putParcelableArrayListExtra("FAVOURITESONGS", favourites)
-            startActivityForResult(intent, 2)
+            intent.putParcelableArrayListExtra("songs", ArrayList(songs))
+            intent.putParcelableArrayListExtra("songsUnlocked", songsUnlocked)
+            startActivity(intent)
         }
+    }
+
+    private fun startMaps() {
+        val intent = Intent(this, MapsActivity::class.java)
+        intent.putExtra("difficulty", selectedDifficulty!!)
+        intent.putParcelableArrayListExtra("songs", ArrayList(songs))
+        intent.putExtra("songToPlay", songToPlayIndexString)
+        intent.putExtra("songsSkipped", songsSkipped)
+        startActivityForResult(intent, 1)
     }
 
     override fun onStart() {
@@ -294,7 +293,7 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         if (requestCode == 1) {
             if (resultCode == Activity.RESULT_OK) {
-                val distToAdd: Int = data.getIntExtra("RETURNDIST", 0)
+                val distToAdd: Int = data.getIntExtra("returnDistance", 0)
                 distanceWalked += distToAdd
                /* if (distanceWalked < walkingTarget) {
                     progressBarWalkingTarget.progress = distanceWalked
@@ -307,14 +306,10 @@ class MainActivity : AppCompatActivity() {
                 }*/
                 toast("Distance walked updated")
 
-                songsSkipped = data.getParcelableArrayListExtra("RETURNSONGSSKIPPED")
+                songsSkipped = data.getParcelableArrayListExtra("returnSongsSkipped")
                 for (skips in songsSkipped) {
                     toast("${skips.title} has been skipped")
                 }
-            }
-        } else if (requestCode == 2) {
-            if (resultCode == Activity.RESULT_OK) {
-                favourites = data.getParcelableArrayListExtra("RETURNFAV")
             }
         }
     }

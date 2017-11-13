@@ -8,14 +8,12 @@ import kotlinx.android.synthetic.main.activity_help.*
 
 class HelpActivity : AppCompatActivity() {
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when {
-            item.itemId == android.R.id.home -> {
-                onBackPressed()
-                true
-            }
-            else -> false
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
+        item.itemId == android.R.id.home -> {
+            onBackPressed()
+            true
         }
+        else -> false
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

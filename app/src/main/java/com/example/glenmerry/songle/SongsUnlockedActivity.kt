@@ -1,6 +1,7 @@
 package com.example.glenmerry.songle
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.os.Bundle
@@ -17,7 +18,7 @@ class SongsUnlockedActivity : AppCompatActivity() {
     private lateinit var songsUnlocked: ArrayList<Song>
     private var artistAndTitles = ArrayList<String>()
     private lateinit var indexInSongs: ArrayList<Int>
-    private var favourites = arrayListOf<Song>()
+   // private var favourites = arrayListOf<Song>()
     private lateinit var adapter: ArrayAdapter<String>
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -25,11 +26,12 @@ class SongsUnlockedActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == android.R.id.home) {
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
+        item.itemId == android.R.id.home -> {
             onBackPressed()
-            return true
-        } else if (item.itemId == R.id.action_show_favourites) {
+            true
+        }
+        item.itemId == R.id.action_show_favourites -> {
             if (supportActionBar!!.title == "Songs Unlocked") {
                 supportActionBar!!.title = "Favourite Songs"
                 item.icon = ContextCompat.getDrawable(this, R.drawable.ic_favorite_white_24px)
@@ -47,9 +49,9 @@ class SongsUnlockedActivity : AppCompatActivity() {
                 item.icon = ContextCompat.getDrawable(this, R.drawable.ic_favorite_border_white_24px)
                 showList(artistAndTitles, indexInSongs)
             }
-            return true
+            true
         }
-        return false
+        else -> false
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,9 +59,9 @@ class SongsUnlockedActivity : AppCompatActivity() {
         setContentView(R.layout.activity_songs_unlocked)
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
-        songs = intent.extras.getParcelableArrayList("SONGS")
-        songsUnlocked = intent.extras.getParcelableArrayList("SONGSUNLOCKED")
-        favourites = intent.extras.getParcelableArrayList("FAVOURITESONGS")
+        songs = intent.extras.getParcelableArrayList("songs")
+        songsUnlocked = intent.extras.getParcelableArrayList("songsUnlocked")
+        //favourites = intent.extras.getParcelableArrayList("favourites")
         indexInSongs = arrayListOf()
 
         for (i in songs.indices) {
@@ -92,22 +94,22 @@ class SongsUnlockedActivity : AppCompatActivity() {
         showList(artistAndTitles, indexInSongs)
     }
 
-    override fun onBackPressed() {
+    /*override fun onBackPressed() {
         val intent = Intent()
-        intent.putParcelableArrayListExtra("RETURNFAV", favourites)
+        intent.putParcelableArrayListExtra("returnFavourites", favourites)
         setResult(Activity.RESULT_OK, intent)
         finish()
-    }
+    }*/
 
     private fun showList(artistAndTitles: ArrayList<String>, indexInSongs: ArrayList<Int>) {
         val listView = findViewById(R.id.list) as ListView
-        adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, artistAndTitles)
+        val adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, artistAndTitles)
         listView.adapter = adapter
         listView.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
             if (artistAndTitles[i] != "\uD83D\uDD12") {
                 val intent = Intent(this, SongDetailActivity::class.java)
-                intent.putExtra("SONG", songs[indexInSongs[i]])
-                intent.putExtra("FAVOURITES", favourites)
+                intent.putExtra("song", songs[indexInSongs[i]])
+                intent.putExtra("favourites", favourites)
                 startActivityForResult(intent, 1)
             } else {
                 toast("Song Locked!")
@@ -118,7 +120,7 @@ class SongsUnlockedActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
         if (requestCode == 1) {
             if (resultCode == Activity.RESULT_OK) {
-                favourites = data.getParcelableArrayListExtra("RETURNFAV")
+                favourites = data.getParcelableArrayListExtra("returnFavourites")
                 if (supportActionBar!!.title == "Favourite Songs") {
                     val artistAndTitlesFav = arrayListOf<String>()
                     val indexInSongsFav = ArrayList<Int>()

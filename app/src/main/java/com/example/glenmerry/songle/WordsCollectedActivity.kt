@@ -15,21 +15,20 @@ import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
 import java.net.URL
 
-class WordsFoundActivity : AppCompatActivity() {
+class WordsCollectedActivity : AppCompatActivity() {
 
     private val wordsFound = HashMap<String, String>()
     private var songs = arrayListOf<Song>()
     private var songToPlayIndexString = "01"
-    private var guessCount = 0
+    private var guessCount:Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_words_found)
 
-        songs = intent.extras.getParcelableArrayList("SONGS")
-        songToPlayIndexString = intent.extras.getString("SONGTOPLAY")
-        guessCount = intent.extras.getInt("GUESSCOUNT")
-        toast(guessCount)
+        songs = intent.extras.getParcelableArrayList("songs")
+        songToPlayIndexString = intent.extras.getString("songToPlay")
+        guessCount = intent.extras.getInt("guessCount")
 
         /*wordsFound.put("13:0", "Mama")
         wordsFound.put("28:8", "truth")
@@ -91,20 +90,21 @@ class WordsFoundActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == android.R.id.home) {
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
+        item.itemId == android.R.id.home -> {
             onBackPressed()
-            return true
-        } else if (item.itemId == R.id.action_guess) {
-            makeGuess()
-            return true
+            true
         }
-        return false
+        item.itemId == R.id.action_guess -> {
+            makeGuess()
+            true
+        }
+        else -> false
     }
 
     override fun onBackPressed() {
         val intent = Intent()
-        intent.putExtra("RETURNGUESSCOUNT", guessCount)
+        intent.putExtra("returnGuessCount", guessCount)
         setResult(Activity.RESULT_OK, intent)
         finish()
     }
@@ -144,7 +144,6 @@ class WordsFoundActivity : AppCompatActivity() {
             } else {
                 val builder = AlertDialog.Builder(this)
                 guessCount++
-                toast(guessCount)
                 builder.setTitle("Sorry, that's not quite right")
                 builder.setMessage("Guess again?")
                 builder.setPositiveButton("Guess again") { dialog, which ->
