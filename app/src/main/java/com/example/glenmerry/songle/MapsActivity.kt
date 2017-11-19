@@ -2,8 +2,11 @@ package com.example.glenmerry.songle
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.location.Location
@@ -36,6 +39,7 @@ import org.jetbrains.anko.activityUiThread
 import org.jetbrains.anko.alert
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
+import java.math.BigDecimal
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
@@ -52,10 +56,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var songToPlayIndexString = "01"
     private var distanceWalked = 0.toFloat()
     private lateinit var lastLoc: Location
-    private var songs = arrayListOf<Song>()
     private var targetMet = false
     private var songsSkipped = arrayListOf<Song>()
-    private var guessCount:Int = 0
+    private var guessCount: Int = 0
+    private var walkingTarget: Int? = null
+    private var adjustedTarget: Int? = null
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_maps, menu)
@@ -73,7 +78,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         item.itemId == R.id.action_lyrics_list -> {
             val intent = Intent(this, WordsCollectedActivity::class.java)
             intent.putExtra("songToPlay", songToPlayIndexString)
-            intent.putParcelableArrayListExtra("songs", ArrayList(songs))
             intent.putExtra("guessCount", guessCount)
             startActivityForResult(intent, 1)
             true
@@ -116,10 +120,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
         difficulty = intent.extras.getInt("difficulty")
-        songs = intent.extras.getParcelableArrayList("songs")
         songToPlayIndexString = intent.extras.getString("songToPlay")
         songsSkipped = intent.extras.getParcelableArrayList("songsSkipped")
+        walkingTarget = intent.extras.getInt("walkingTarget")
 
+        toast("Walking target is $walkingTarget")
         toast("Playing song: ${songs[songToPlayIndexString.toInt()].title}")
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -137,12 +142,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 .build()
 
         lastLoc = Location("")
-        lastLoc.latitude = (55.944009)
-        lastLoc.longitude = -3.188438
+        lastLoc.latitude = 0.0
+        lastLoc.longitude = 0.0
     }
 
     private lateinit var bmp: Bitmap
-
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
@@ -252,29 +256,64 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         if (current == null) {
             println("[onLocationChanged] Location unknown")
         } else {
-            println("[onLocationChanged] Lat/long now (${current.latitude}, ${current.longitude})" )
+           // println("[onLocationChanged] Lat/long now (${current.latitude}, ${current.longitude})" )
         }
-        // Do something with current location
-        distanceWalked += current!!.distanceTo(lastLoc)
-        lastLoc = current
+
+        if (lastLoc.latitude != 0.0) {
+            distanceWalked += current!!.distanceTo(lastLoc)
+        }
+
+        if (current != null) {
+            lastLoc = current
+        }
+
         toast("distance changed to $distanceWalked")
-        if (distanceWalked > 1000 && targetMet == false) {
+        if (adjustedTarget != null && distanceWalked >= adjustedTarget!! && !targetMet) {
             targetMet = true
-            alert("You hit your walking target of 1km", "Congratulations!") {
+            alert("You hit your walking target of $walkingTarget", "Congratulations!") {
                 positiveButton("Set new target") {
-                    /*val alert = AlertDialog.Builder(Context(MapsActivity))
+                    val alert = AlertDialog.Builder(this@MapsActivity)
                     alert.setTitle("Set a new walking target in metres")
-                    val input = EditText(MapsActivity)
+                    val input = EditText(this@MapsActivity)
                     input.inputType = InputType.TYPE_CLASS_NUMBER
                     input.setRawInputType(Configuration.KEYBOARD_12KEY)
                     alert.setView(input)
-                    alert.setPositiveButton("Set", DialogInterface.OnClickListener { dialog, whichButton ->
+                    alert.setPositiveButton("Set", { _, _ ->
+                        walkingTarget = input.text.toString().toInt()
+                        if (walkingTarget != null && walkingTarget!! > 0) {
+                            targetMet = false
+                            adjustedTarget = walkingTarget!! + distanceWalked.toInt()
+                        }
+                    })
+                    alert.setNegativeButton("Cancel", { _, _ ->
 
                     })
-                    alert.setNegativeButton("Cancel", DialogInterface.OnClickListener { dialog, whichButton ->
+                    alert.show()
+                }
+                negativeButton("Back to map") {}
+            } .show()
+        }
+        else if (walkingTarget != null && distanceWalked >= walkingTarget!! && !targetMet) {
+            targetMet = true
+            alert("You hit your walking target of $walkingTarget", "Congratulations!") {
+                positiveButton("Set new target") {
+                    val alert = AlertDialog.Builder(this@MapsActivity)
+                    alert.setTitle("Set a new walking target in metres")
+                    val input = EditText(this@MapsActivity)
+                    input.inputType = InputType.TYPE_CLASS_NUMBER
+                    input.setRawInputType(Configuration.KEYBOARD_12KEY)
+                    alert.setView(input)
+                    alert.setPositiveButton("Set", { _, _ ->
+                        walkingTarget = input.text.toString().toInt()
+                        if (walkingTarget != null && walkingTarget!! > 0) {
+                            targetMet = false
+                            adjustedTarget = walkingTarget!! + distanceWalked.toInt()
+                        }
+                    })
+                    alert.setNegativeButton("Cancel", { _, _ ->
 
                     })
-                    alert.show()*/
+                    alert.show()
                 }
                 negativeButton("Back to map") {}
             } .show()
@@ -312,6 +351,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         val intent = Intent()
         intent.putExtra("returnDistance", distanceWalked.toInt())
         intent.putParcelableArrayListExtra("returnSongsSkipped", songsSkipped)
+        intent.putExtra("returnWalkingTarget", walkingTarget)
+        intent.putExtra("returnAdjustedTarget", adjustedTarget)
         setResult(Activity.RESULT_OK, intent)
         finish()
     }
@@ -345,7 +386,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 }
                 builderCorrect.setNegativeButton("View Lyrics") { _, _ ->
                     val intent = Intent(this, SongDetailActivity::class.java)
-                    intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
+                    intent.putExtra("song", songs[songToPlayIndexString.toInt()])
                     startActivity(intent)
                 }
                 builderCorrect.setNeutralButton("Share") { _, _ ->

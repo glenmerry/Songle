@@ -14,7 +14,6 @@ import org.jetbrains.anko.toast
 
 class SongsUnlockedActivity : AppCompatActivity() {
 
-    private lateinit var songs: ArrayList<Song>
     private lateinit var songsUnlocked: ArrayList<Song>
     private var artistAndTitles = ArrayList<String>()
     private lateinit var indexInSongs: ArrayList<Int>
@@ -59,9 +58,7 @@ class SongsUnlockedActivity : AppCompatActivity() {
         setContentView(R.layout.activity_songs_unlocked)
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
-        songs = intent.extras.getParcelableArrayList("songs")
         songsUnlocked = intent.extras.getParcelableArrayList("songsUnlocked")
-        //favourites = intent.extras.getParcelableArrayList("favourites")
         indexInSongs = arrayListOf()
 
         for (i in songs.indices) {

@@ -18,7 +18,6 @@ import java.net.URL
 class WordsCollectedActivity : AppCompatActivity() {
 
     private val wordsFound = HashMap<String, String>()
-    private var songs = arrayListOf<Song>()
     private var songToPlayIndexString = "01"
     private var guessCount:Int = 0
 
@@ -26,7 +25,6 @@ class WordsCollectedActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_words_found)
 
-        songs = intent.extras.getParcelableArrayList("songs")
         songToPlayIndexString = intent.extras.getString("songToPlay")
         guessCount = intent.extras.getInt("guessCount")
 
@@ -130,7 +128,7 @@ class WordsCollectedActivity : AppCompatActivity() {
                 }
                 builder.setNegativeButton("View Lyrics") { dialog, which ->
                     val intent = Intent(this, SongDetailActivity::class.java)
-                    intent.putExtra("SONG", songs[songToPlayIndexString.toInt()])
+                    intent.putExtra("song", songs[songToPlayIndexString.toInt()])
                     startActivity(intent)
                 }
                 builder.setNeutralButton("Share") { dialog, which ->

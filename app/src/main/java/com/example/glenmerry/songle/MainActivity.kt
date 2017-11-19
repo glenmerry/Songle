@@ -29,6 +29,7 @@ import java.net.URL
 import java.util.*
 
 var favourites = arrayListOf<Song>()
+var songs = listOf<Song>()
 
 class MainActivity : AppCompatActivity() {
 
@@ -45,9 +46,7 @@ class MainActivity : AppCompatActivity() {
     private var distanceWakedHidden = false
     private var titlesUnlockedLoad = mutableSetOf<String>()
     private var titlesFavLoad = mutableSetOf<String>()
-
     private var songsSkipped = arrayListOf<Song>()
-    private var songs = listOf<Song>()
     private val songsUnlocked: ArrayList<Song> = ArrayList()
     private var songToPlayIndexString = "01"
 
@@ -121,50 +120,23 @@ class MainActivity : AppCompatActivity() {
         val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
         this.registerReceiver(receiver, filter)
 
-        doAsync {
-            try {
-                loadXmlFromNetwork("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
-            } catch (e: IOException) {
-                "Unable to load content. Check your network connection"
-            } catch (e: XmlPullParserException) {
-                "Error parsing XML"
-            }
-            activityUiThread {
-                for (song in songs) {
-                    if (titlesUnlockedLoad.contains(song.title)) {
-                        songsUnlocked.add(song)
-                    }
-                    if (titlesFavLoad.contains(song.title)) {
-                        favourites.add(song)
-                    }
-                    println(song)
-                }
-                progressBar.max = songs.size
-                progressBar.progress = songsUnlocked.size
-                textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
-
-                var songToPlayIndex = randomSongIndex(0, songs.size)
-                while (songsUnlocked.contains(songs[songToPlayIndex])) {
-                    songToPlayIndex = randomSongIndex(0, songs.size)
-                }
-
-                songToPlayIndexString = if (songToPlayIndex < 10) {
-                    "0$songToPlayIndex"
-                } else {
-                    songToPlayIndex.toString()
-                }
-            }
-        }
+        downloadSongs()
 
         buttonPlay.setOnClickListener {
-            if (selectedDifficulty != null) {
-                startMaps()
-            } else {
-                selector("Please select a difficulty", difficulties, { _, i ->
-                    selectedDifficulty = (5-i)
-                    textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
+            if (songs.isNotEmpty()) {
+                if (selectedDifficulty != null) {
                     startMaps()
-                })
+                } else {
+                    selector("Please select a difficulty", difficulties, { _, i ->
+                        selectedDifficulty = (5 - i)
+                        textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
+                        startMaps()
+                    })
+                }
+            } else {
+                alert("Please check your internet connection", "Song list has not yet downloaded") {
+                    positiveButton("Ok") {downloadSongs()}
+                }.show()
             }
         }
 
@@ -216,7 +188,6 @@ class MainActivity : AppCompatActivity() {
             alert.show()
         }
 
-
         buttonSongsUnlocked.setOnClickListener {
             val intent = Intent(this, SongsUnlockedActivity::class.java)
             intent.putParcelableArrayListExtra("songs", ArrayList(songs))
@@ -225,12 +196,55 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun downloadSongs() {
+        doAsync {
+            try {
+                loadXmlFromNetwork("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
+            } catch (e: IOException) {
+                print("Unable to load content. Check your network connection")
+            } catch (e: XmlPullParserException) {
+                print("Error parsing XML")
+            }
+            activityUiThread {
+                if (songs.isEmpty()) {
+                    alert("Please check your internet connection", "Error downloading song list") {
+                        positiveButton("Try Again") {downloadSongs()}
+                    }.show()
+                } else {
+                    for (song in songs) {
+                        if (titlesUnlockedLoad.contains(song.title)) {
+                            songsUnlocked.add(song)
+                        }
+                        if (titlesFavLoad.contains(song.title)) {
+                            favourites.add(song)
+                        }
+                        println(song)
+                    }
+                    progressBar.max = songs.size
+                    progressBar.progress = songsUnlocked.size
+                    textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
+
+                    var songToPlayIndex = randomSongIndex(0, songs.size)
+                    while (songsUnlocked.contains(songs[songToPlayIndex])) {
+                        songToPlayIndex = randomSongIndex(0, songs.size)
+                    }
+
+                    songToPlayIndexString = if (songToPlayIndex < 10) {
+                        "0$songToPlayIndex"
+                    } else {
+                        songToPlayIndex.toString()
+                    }
+                }
+            }
+        }
+    }
+
     private fun startMaps() {
         val intent = Intent(this, MapsActivity::class.java)
         intent.putExtra("difficulty", selectedDifficulty!!)
-        intent.putParcelableArrayListExtra("songs", ArrayList(songs))
         intent.putExtra("songToPlay", songToPlayIndexString)
         intent.putExtra("songsSkipped", songsSkipped)
+        intent.putExtra("walkingTarget", walkingTarget)
         startActivityForResult(intent, 1)
     }
 
