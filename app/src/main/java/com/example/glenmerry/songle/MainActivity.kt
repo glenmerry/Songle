@@ -40,10 +40,13 @@ class MainActivity : AppCompatActivity() {
     private val difficulties = listOf("Beginner", "Easy", "Medium", "Hard", "Impossible")
     private var walkingTarget: Int? = null
     private var walkingTargetWithUnit = String()
+    private var walkingTargetProgress = 0
+    private var walkingTargetProgressWithUnit = String()
+    private var targetMet = false
     private var distanceWalked = 0
     private var distanceWalkedWithUnit = String()
-    private val prefsFile = "MyPrefsFile" // for storing preferences
     private var distanceWakedHidden = false
+    private val prefsFile = "MyPrefsFile" // for storing preferences
     private var titlesUnlockedLoad = mutableSetOf<String>()
     private var titlesFavLoad = mutableSetOf<String>()
     private var songsSkipped = arrayListOf<Song>()
@@ -175,14 +178,36 @@ class MainActivity : AppCompatActivity() {
             input.setRawInputType(Configuration.KEYBOARD_12KEY)
             alert.setView(input)
             alert.setPositiveButton("Set", { _, _ ->
+                targetMet = false
                 walkingTarget = input.text.toString().toInt()
+                walkingTargetProgress = 0
+                walkingTargetProgressWithUnit = "0m"
                 walkingTargetWithUnit = if (walkingTarget!! < 1000) {
                     "${walkingTarget}m"
                 } else {
                     "${BigDecimal(walkingTarget!!.toDouble()/1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
                 }
                 progressBarWalkingTarget.max = walkingTarget!!
-                textViewProgressWalkingTarget.text = "You have walked $distanceWalkedWithUnit of your $walkingTargetWithUnit target!"
+                if (distanceWalked > 0) {
+                    distanceWalkedWithUnit = if (distanceWalked < 1000) {
+                        "${distanceWalked}m"
+                    } else {
+                        "${BigDecimal(distanceWalked.toDouble()/1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+                    }
+                    if (distanceWalked == walkingTarget) {
+                        "$distanceWalkedWithUnit walked of $walkingTargetWithUnit target!\n"
+                    } else {
+                        textViewProgressWalkingTarget.text = "$walkingTargetProgressWithUnit walked of $walkingTargetWithUnit target!\n" +
+                                "$distanceWalkedWithUnit total walked while playing Songle!"
+                    }
+                } else {
+                    if (distanceWalked > 0) {
+                        textViewProgressWalkingTarget.text = "0m walked of $walkingTargetWithUnit target\n" +
+                                "$distanceWalkedWithUnit total walked while playing Songle!"
+                    } else {
+                        textViewProgressWalkingTarget.text = "0m walked of $walkingTargetWithUnit target!"
+                    }
+                }
             })
             alert.setNegativeButton("Cancel", { _, _ -> })
             alert.show()
@@ -201,9 +226,9 @@ class MainActivity : AppCompatActivity() {
             try {
                 loadXmlFromNetwork("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
             } catch (e: IOException) {
-                print("Unable to load content. Check your network connection")
+                println("Unable to load content. Check your network connection")
             } catch (e: XmlPullParserException) {
-                print("Error parsing XML")
+                println("Error parsing XML")
             }
             activityUiThread {
                 if (songs.isEmpty()) {
@@ -245,6 +270,8 @@ class MainActivity : AppCompatActivity() {
         intent.putExtra("songToPlay", songToPlayIndexString)
         intent.putExtra("songsSkipped", songsSkipped)
         intent.putExtra("walkingTarget", walkingTarget)
+        intent.putExtra("walkingTargetProgress", walkingTargetProgress)
+        intent.putExtra("targetMet", targetMet)
         startActivityForResult(intent, 1)
     }
 
@@ -309,24 +336,51 @@ class MainActivity : AppCompatActivity() {
             if (resultCode == Activity.RESULT_OK) {
                 val distToAdd: Int = data.getIntExtra("returnDistance", 0)
                 distanceWalked += distToAdd
-               /* if (distanceWalked < walkingTarget) {
-                    progressBarWalkingTarget.progress = distanceWalked
-                    distanceWalkedWithUnit = if (distanceWalked < 1000) {
-                        "${distanceWalked}m"
-                    } else {
-                        "${distanceWalked / 1000}km"
-                    }
-                    textViewProgressWalkingTarget.text = "You have walked $distanceWalkedWithUnit of your $walkingTargetWithUnit target!"
-                }*/
-                toast("Distance walked updated")
+                distanceWalkedWithUnit = if (distanceWalked < 1000) {
+                    "${distanceWalked}m"
+                } else {
+                    "${BigDecimal(distanceWalked.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+                }
 
-                songsSkipped = data.getParcelableArrayListExtra("returnSongsSkipped")
-                for (skips in songsSkipped) {
-                    toast("${skips.title} has been skipped")
+                val returnWalkingTarget = data.getIntExtra("returnWalkingTarget", Int.MAX_VALUE)
+
+                if (returnWalkingTarget != Int.MAX_VALUE) {
+                    walkingTarget = returnWalkingTarget
+                    walkingTargetWithUnit = if (walkingTarget!! < 1000) {
+                        "${walkingTarget}m"
+                    } else {
+                        "${BigDecimal(walkingTarget!!.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+                    }
+                    walkingTargetProgress = data.getIntExtra("returnWalkingTargetProgress", 0)
+                    walkingTargetProgressWithUnit = if (walkingTargetProgress < 1000) {
+                        "${walkingTargetProgress}m"
+                    } else {
+                        "${BigDecimal(walkingTargetProgress.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+                    }
+
+                    progressBarWalkingTarget.max = walkingTarget!!
+                    progressBarWalkingTarget.progress = walkingTargetProgress
+                    if (walkingTargetProgress < walkingTarget!!) {
+                        if (walkingTargetProgress != distanceWalked) {
+                            textViewProgressWalkingTarget.text = "${walkingTargetProgressWithUnit} walked of $walkingTargetWithUnit target!\n" +
+                                    "$distanceWalkedWithUnit total walked while playing Songle!"
+                        } else {
+                            textViewProgressWalkingTarget.text = "You have walked ${walkingTargetProgressWithUnit} of your $walkingTargetWithUnit target!"
+                        }
+                    } else {
+                        if (walkingTargetProgress != distanceWalked) {
+                            targetMet = true
+                            textViewProgressWalkingTarget.text = "$walkingTargetWithUnit target reached!\n" +
+                                    "$distanceWalkedWithUnit total walked while playing Songle!"
+                        }
+                    }
+                } else {
+                    textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit total walked while playing Songle!"
                 }
             }
         }
     }
+
 
     private inner class NetworkReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {

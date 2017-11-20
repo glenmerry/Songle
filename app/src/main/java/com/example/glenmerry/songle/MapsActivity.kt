@@ -56,11 +56,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var songToPlayIndexString = "01"
     private var distanceWalked = 0.toFloat()
     private lateinit var lastLoc: Location
-    private var targetMet = false
+    private var targetMet = false // Probably dont need this!
     private var songsSkipped = arrayListOf<Song>()
     private var guessCount: Int = 0
     private var walkingTarget: Int? = null
-    private var adjustedTarget: Int? = null
+    private var walkingTargetProgress = 0.toFloat()
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_maps, menu)
@@ -123,6 +123,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         songToPlayIndexString = intent.extras.getString("songToPlay")
         songsSkipped = intent.extras.getParcelableArrayList("songsSkipped")
         walkingTarget = intent.extras.getInt("walkingTarget")
+        if (walkingTarget == 0) {
+            walkingTarget = null
+        } else {
+            walkingTargetProgress = intent.extras.getInt("walkingTargetProgress").toFloat()
+        }
+        targetMet = intent.extras.getBoolean("targetMet")
 
         toast("Walking target is $walkingTarget")
         toast("Playing song: ${songs[songToPlayIndexString.toInt()].title}")
@@ -151,7 +157,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
         val georgeSq = LatLng(55.944009, -3.188438)
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(georgeSq, 15.toFloat()))
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(georgeSq, 15.7.toFloat()))
 
         try {
             // Visualise current position with a small blue circle
@@ -170,7 +176,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             conn.connect()
 
             val layer = KmlLayer(mMap, conn.inputStream, applicationContext)
-
 
             val url2 = URL("http://maps.google.com/mapfiles/kml/paddle/ylw-circle.png")
             bmp = BitmapFactory.decodeStream(url2.openConnection().getInputStream())
@@ -196,8 +201,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                         .title("Not Boring"))
                 mGeorgeSq.tag = 0
                // mMap.setOnMarkerClickListener(this)
-
-
             }
         }
     }
@@ -248,9 +251,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         // Caution: getLastLocation can return null
             if (mLastLocation == null) {
                 println("[$tag] Warning: mLastLocation is null")
-            } } else {
+            }
+        } else {
             ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
-        } }
+        }
+    }
 
     override fun onLocationChanged(current : Location?) {
         if (current == null) {
@@ -260,40 +265,22 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
 
         if (lastLoc.latitude != 0.0) {
-            distanceWalked += current!!.distanceTo(lastLoc)
+            if (current != null) {
+                val distToAdd = current.distanceTo(lastLoc)
+                distanceWalked += distToAdd
+                if (walkingTarget != null) {
+                    walkingTargetProgress += distToAdd
+                }
+            }
         }
 
         if (current != null) {
             lastLoc = current
         }
 
-        toast("distance changed to $distanceWalked")
-        if (adjustedTarget != null && distanceWalked >= adjustedTarget!! && !targetMet) {
-            targetMet = true
-            alert("You hit your walking target of $walkingTarget", "Congratulations!") {
-                positiveButton("Set new target") {
-                    val alert = AlertDialog.Builder(this@MapsActivity)
-                    alert.setTitle("Set a new walking target in metres")
-                    val input = EditText(this@MapsActivity)
-                    input.inputType = InputType.TYPE_CLASS_NUMBER
-                    input.setRawInputType(Configuration.KEYBOARD_12KEY)
-                    alert.setView(input)
-                    alert.setPositiveButton("Set", { _, _ ->
-                        walkingTarget = input.text.toString().toInt()
-                        if (walkingTarget != null && walkingTarget!! > 0) {
-                            targetMet = false
-                            adjustedTarget = walkingTarget!! + distanceWalked.toInt()
-                        }
-                    })
-                    alert.setNegativeButton("Cancel", { _, _ ->
+        toast("distance changed to $distanceWalked\nWalked $walkingTargetProgress  of target $walkingTarget\n")
 
-                    })
-                    alert.show()
-                }
-                negativeButton("Back to map") {}
-            } .show()
-        }
-        else if (walkingTarget != null && distanceWalked >= walkingTarget!! && !targetMet) {
+        if (walkingTarget != null && walkingTargetProgress >= walkingTarget!! && !targetMet) {
             targetMet = true
             alert("You hit your walking target of $walkingTarget", "Congratulations!") {
                 positiveButton("Set new target") {
@@ -304,10 +291,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     input.setRawInputType(Configuration.KEYBOARD_12KEY)
                     alert.setView(input)
                     alert.setPositiveButton("Set", { _, _ ->
-                        walkingTarget = input.text.toString().toInt()
+                        val newWalkingTarget = input.text.toString().toInt()
                         if (walkingTarget != null && walkingTarget!! > 0) {
                             targetMet = false
-                            adjustedTarget = walkingTarget!! + distanceWalked.toInt()
+                            walkingTarget = newWalkingTarget
+                            walkingTargetProgress = 0.toFloat()
                         }
                     })
                     alert.setNegativeButton("Cancel", { _, _ ->
@@ -351,8 +339,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         val intent = Intent()
         intent.putExtra("returnDistance", distanceWalked.toInt())
         intent.putParcelableArrayListExtra("returnSongsSkipped", songsSkipped)
-        intent.putExtra("returnWalkingTarget", walkingTarget)
-        intent.putExtra("returnAdjustedTarget", adjustedTarget)
+        if (walkingTarget != null) {
+            intent.putExtra("returnWalkingTarget", walkingTarget!!)
+        }
+
+        intent.putExtra("returnWalkingTargetProgress", walkingTargetProgress.toInt())
         setResult(Activity.RESULT_OK, intent)
         finish()
     }
