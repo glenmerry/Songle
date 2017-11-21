@@ -12,6 +12,7 @@ import android.support.design.widget.Snackbar
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import android.text.InputType
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -30,6 +31,7 @@ import java.util.*
 
 var favourites = arrayListOf<Song>()
 var songs = listOf<Song>()
+val prefsFile = "MyPrefsFile" // for storing preferences
 
 class MainActivity : AppCompatActivity() {
 
@@ -46,7 +48,6 @@ class MainActivity : AppCompatActivity() {
     private var distanceWalked = 0
     private var distanceWalkedWithUnit = String()
     private var distanceWakedHidden = false
-    private val prefsFile = "MyPrefsFile" // for storing preferences
     private var titlesUnlockedLoad = mutableSetOf<String>()
     private var titlesFavLoad = mutableSetOf<String>()
     private var songsSkipped = arrayListOf<Song>()
@@ -71,8 +72,11 @@ class MainActivity : AppCompatActivity() {
                     selectedDifficulty = null
                     textViewShowDiff.text = ""
                     distanceWalked = 0
+                    distanceWalkedWithUnit = "0m"
                     walkingTarget = null
                     walkingTargetWithUnit = ""
+                    textViewProgressWalkingTarget.text = "" +
+                            ""
                 }
                 negativeButton("No, abort") {}
             }.show()
@@ -96,6 +100,11 @@ class MainActivity : AppCompatActivity() {
             alert("Distance walked data and target will be lost!", "Are you sure you want to reset distance walked?") {
                 positiveButton("Yes, I'm sure") {
                     distanceWalked = 0
+                    distanceWalkedWithUnit = "0m"
+                    walkingTarget = null
+                    walkingTargetWithUnit = ""
+                    progressBarWalkingTarget.progress = 0
+                    textViewProgressWalkingTarget.text = ""
                 }
                 negativeButton("No, abort") {}
             }.show()
@@ -105,15 +114,13 @@ class MainActivity : AppCompatActivity() {
             /*val intent = Intent(this, HelpActivity::class.java)
             startActivity(intent)
             true*/
-            songsUnlocked.add(songs[randomSongIndex(0, 18)])
+            songsUnlocked.add(songs[randomSongIndex(0, songs.size)])
             progressBar.progress = songsUnlocked.size
             textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
             true
         }
         else -> super.onOptionsItemSelected(item)
     }
-
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -159,7 +166,7 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     "${distanceWalked / 1000}km"
                 }
-                textViewProgressWalkingTarget.text = "You have walked $distanceWalkedWithUnit of your $walkingTargetWithUnit target!"
+                textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit walked of $walkingTargetWithUnit target!"
             } else {
                 progressBarWalkingTarget.progress = walkingTarget!!
                 textViewProgressWalkingTarget.text = "Congratulations you've reached your walking target of $walkingTarget, set a new one?"
@@ -219,6 +226,79 @@ class MainActivity : AppCompatActivity() {
             intent.putParcelableArrayListExtra("songsUnlocked", songsUnlocked)
             startActivity(intent)
         }
+
+        // Restore preferences
+        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
+
+        selectedDifficulty = settings.getInt("storedSelectedDifficulty", 6)
+        if (selectedDifficulty == 6) {
+            selectedDifficulty = null
+        } else {
+            val diffString: String = when (selectedDifficulty) {
+                1 -> "Impossible"
+                2 -> "Hard"
+                3 -> "Medium"
+                4 -> "Easy"
+                5 -> "Beginner"
+                else -> ""
+            }
+            textViewShowDiff.text = "Selected Difficulty: $diffString"
+        }
+        distanceWakedHidden = settings.getBoolean("storedDistanceWalkedHidden", false)
+        if (distanceWakedHidden) {
+            buttonSetTarget.visibility = View.GONE
+            progressBarWalkingTarget.visibility = View.GONE
+            textViewProgressWalkingTarget.visibility = View.GONE
+        }
+
+        titlesUnlockedLoad = settings.getStringSet("storedSongsUnlocked", setOf(""))
+        titlesFavLoad = settings.getStringSet("storedFavourites", setOf(""))
+
+        distanceWalked = settings.getInt("storedDistanceWalked", 0)
+        walkingTarget = settings.getInt("storedWalkingTarget", -1)
+        walkingTargetProgress = settings.getInt("storedWalkingTargetProgress", 0)
+
+        distanceWalkedWithUnit = if (distanceWalked < 1000) {
+            "${distanceWalked}m"
+        } else {
+            "${BigDecimal(distanceWalked.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+        }
+
+        if (walkingTarget != -1) {
+            progressBarWalkingTarget.max = walkingTarget!!
+            progressBarWalkingTarget.progress = walkingTargetProgress
+
+            walkingTargetWithUnit = if (walkingTarget!! < 1000) {
+                "${walkingTarget}m"
+            } else {
+                "${BigDecimal(walkingTarget!!.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+            }
+            walkingTargetProgressWithUnit = if (walkingTargetProgress < 1000) {
+                "${walkingTargetProgress}m"
+            } else {
+                "${BigDecimal(walkingTargetProgress.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+            }
+
+            if (walkingTargetProgress < walkingTarget!!) {
+                if (walkingTargetProgress != distanceWalked) {
+                    textViewProgressWalkingTarget.text = "${walkingTargetProgressWithUnit} walked of $walkingTargetWithUnit target!\n" +
+                            "$distanceWalkedWithUnit total walked while playing Songle!"
+                } else {
+                    textViewProgressWalkingTarget.text = "${walkingTargetProgressWithUnit} walked of $walkingTargetWithUnit target!"
+                }
+            } else {
+                if (walkingTargetProgress != distanceWalked) {
+                    targetMet = true
+                }
+                textViewProgressWalkingTarget.text = "$walkingTargetWithUnit target reached!\n" +
+                        "$distanceWalkedWithUnit total walked while playing Songle!"
+            }
+
+        } else {
+            walkingTarget = null
+            textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit total walked while playing Songle!"
+        }
+
     }
 
     private fun downloadSongs() {
@@ -269,52 +349,29 @@ class MainActivity : AppCompatActivity() {
         intent.putExtra("difficulty", selectedDifficulty!!)
         intent.putExtra("songToPlay", songToPlayIndexString)
         intent.putExtra("songsSkipped", songsSkipped)
+        intent.putExtra("distanceWalked", distanceWalked)
         intent.putExtra("walkingTarget", walkingTarget)
         intent.putExtra("walkingTargetProgress", walkingTargetProgress)
         intent.putExtra("targetMet", targetMet)
         startActivityForResult(intent, 1)
     }
 
-    override fun onStart() {
-        super.onStart()
-
-        // Restore preferences
-        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
-        distanceWakedHidden = settings.getBoolean("storedDistanceWalkedHidden", false)
-        selectedDifficulty = settings.getInt("storedSelectedDifficulty", 6)
-        if (selectedDifficulty == 6) {
-            selectedDifficulty = null
-        } else {
-            val diffString: String = when (selectedDifficulty) {
-                1 -> "Impossible"
-                2 -> "Hard"
-                3 -> "Medium"
-                4 -> "Easy"
-                5 -> "Beginner"
-                else -> ""
-            }
-            textViewShowDiff.text = "Selected Difficulty: $diffString"
-        }
-
-        if (distanceWakedHidden) {
-            buttonSetTarget.visibility = View.GONE
-            progressBarWalkingTarget.visibility = View.GONE
-            textViewProgressWalkingTarget.visibility = View.GONE
-        }
-
-        titlesUnlockedLoad = settings.getStringSet("storedSongsUnlocked", setOf(""))
-        titlesFavLoad = settings.getStringSet("storedFavourites", setOf(""))
-    }
-
-    override fun onStop() {
-        super.onStop()
+    override fun onPause() {
+        super.onPause()
 
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
 
         // We need an Editor object to make preference changes.
         val editor = settings.edit()
+
         editor.putBoolean("storedDistanceWalkedHidden", distanceWakedHidden)
+        editor.putInt("storedDistanceWalked", distanceWalked)
+        if (walkingTarget != null) {
+            editor.putInt("storedWalkingTarget", walkingTarget!!)
+        }
+        editor.putInt("storedWalkingTargetProgress", walkingTargetProgress)
+
         if (selectedDifficulty != null) {
             editor.putInt("storedSelectedDifficulty", selectedDifficulty!!)
         }
@@ -332,10 +389,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+        Log.i("Main activity","onActivityResult")
+
         if (requestCode == 1) {
             if (resultCode == Activity.RESULT_OK) {
-                val distToAdd: Int = data.getIntExtra("returnDistance", 0)
-                distanceWalked += distToAdd
+                distanceWalked = data.getIntExtra("returnDistance", distanceWalked)
                 distanceWalkedWithUnit = if (distanceWalked < 1000) {
                     "${distanceWalked}m"
                 } else {
@@ -365,7 +423,7 @@ class MainActivity : AppCompatActivity() {
                             textViewProgressWalkingTarget.text = "${walkingTargetProgressWithUnit} walked of $walkingTargetWithUnit target!\n" +
                                     "$distanceWalkedWithUnit total walked while playing Songle!"
                         } else {
-                            textViewProgressWalkingTarget.text = "You have walked ${walkingTargetProgressWithUnit} of your $walkingTargetWithUnit target!"
+                            textViewProgressWalkingTarget.text = "${walkingTargetProgressWithUnit} walked of $walkingTargetWithUnit target!"
                         }
                     } else {
                         if (walkingTargetProgress != distanceWalked) {

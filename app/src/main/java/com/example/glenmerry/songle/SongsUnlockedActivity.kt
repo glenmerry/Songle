@@ -91,13 +91,6 @@ class SongsUnlockedActivity : AppCompatActivity() {
         showList(artistAndTitles, indexInSongs)
     }
 
-    /*override fun onBackPressed() {
-        val intent = Intent()
-        intent.putParcelableArrayListExtra("returnFavourites", favourites)
-        setResult(Activity.RESULT_OK, intent)
-        finish()
-    }*/
-
     private fun showList(artistAndTitles: ArrayList<String>, indexInSongs: ArrayList<Int>) {
         val listView = findViewById(R.id.list) as ListView
         val adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, artistAndTitles)
@@ -112,6 +105,23 @@ class SongsUnlockedActivity : AppCompatActivity() {
                 toast("Song Locked!")
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // All objects are from android.context.Context
+        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
+
+        // We need an Editor object to make preference changes.
+        val editor = settings.edit()
+
+        val titlesFav = favourites
+                .map { it.title }
+                .toSet()
+        editor.putStringSet("storedFavourites", titlesFav)
+        editor.apply()
+
+        editor.apply()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {

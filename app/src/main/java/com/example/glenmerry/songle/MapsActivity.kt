@@ -122,6 +122,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         difficulty = intent.extras.getInt("difficulty")
         songToPlayIndexString = intent.extras.getString("songToPlay")
         songsSkipped = intent.extras.getParcelableArrayList("songsSkipped")
+        distanceWalked = intent.extras.getInt("distanceWalked").toFloat()
         walkingTarget = intent.extras.getInt("walkingTarget")
         if (walkingTarget == 0) {
             walkingTarget = null
@@ -221,6 +222,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         if (mGoogleApiClient.isConnected) {
             mGoogleApiClient.disconnect()
         }
+
+        // All objects are from android.context.Context
+        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
+
+        // We need an Editor object to make preference changes.
+        val editor = settings.edit()
+
+        editor.putInt("storedDistanceWalked", distanceWalked.toInt())
+        editor.putInt("storedWalkingTargetProgress", walkingTargetProgress.toInt())
+
+        editor.apply()
     }
 
     private fun createLocationRequest() {
@@ -248,7 +260,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             val api = LocationServices.FusedLocationApi
             mLastLocation = api.getLastLocation(mGoogleApiClient)
-        // Caution: getLastLocation can return null
+            // Caution: getLastLocation can return null
             if (mLastLocation == null) {
                 println("[$tag] Warning: mLastLocation is null")
             }
@@ -282,7 +294,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
         if (walkingTarget != null && walkingTargetProgress >= walkingTarget!! && !targetMet) {
             targetMet = true
-            alert("You hit your walking target of $walkingTarget", "Congratulations!") {
+            val walkingTargetWithUnit = if (walkingTarget!! < 1000) {
+                "${walkingTarget!!.toInt()}m"
+            } else {
+                "${BigDecimal(walkingTarget!!.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+            }
+            alert("You hit your walking target of $walkingTargetWithUnit", "Congratulations!") {
                 positiveButton("Set new target") {
                     val alert = AlertDialog.Builder(this@MapsActivity)
                     alert.setTitle("Set a new walking target in metres")
