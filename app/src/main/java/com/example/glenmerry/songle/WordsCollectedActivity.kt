@@ -28,9 +28,9 @@ class WordsCollectedActivity : AppCompatActivity() {
         songToPlayIndexString = intent.extras.getString("songToPlay")
         guessCount = intent.extras.getInt("guessCount")
 
-        /*wordsFound.put("13:0", "Mama")
+        wordsFound.put("13:0", "Mama")
         wordsFound.put("28:8", "truth")
-        wordsFound.put("3:4", "landslide")*/
+        wordsFound.put("3:4", "landslide")
 
 
         doAsync {
@@ -45,7 +45,7 @@ class WordsCollectedActivity : AppCompatActivity() {
                 }
 
                 val regex = Regex("[a-zA-Z0-9]")
-                val blockedOut = lyrics.replace(regex, "\u2588")
+                val blockedOut = lyrics.replace(regex, "█")
 
                 var blockedOutLines = blockedOut.split("\n").toCollection(ArrayList())
 

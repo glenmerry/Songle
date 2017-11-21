@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
     private var titlesFavLoad = mutableSetOf<String>()
     private var songsSkipped = arrayListOf<Song>()
     private val songsUnlocked: ArrayList<Song> = ArrayList()
-    private var songToPlayIndexString = "01"
+    private var songToPlayIndexString: String? = null
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_main, menu)
@@ -75,8 +75,22 @@ class MainActivity : AppCompatActivity() {
                     distanceWalkedWithUnit = "0m"
                     walkingTarget = null
                     walkingTargetWithUnit = ""
-                    textViewProgressWalkingTarget.text = "" +
-                            ""
+                    progressBarWalkingTarget.progress = 0
+                    textViewProgressWalkingTarget.text = ""
+                    if (songs.isNotEmpty()) {
+                        var songToPlayIndex = randomSongIndex(0, songs.size)
+                        while (songsUnlocked.contains(songs[songToPlayIndex])) {
+                            songToPlayIndex = randomSongIndex(0, songs.size)
+                        }
+
+                        songToPlayIndexString = if (songToPlayIndex < 10) {
+                            "0$songToPlayIndex"
+                        } else {
+                            songToPlayIndex.toString()
+                        }
+                    } else {
+                        songToPlayIndexString = "01"
+                    }
                 }
                 negativeButton("No, abort") {}
             }.show()
@@ -296,6 +310,7 @@ class MainActivity : AppCompatActivity() {
 
         } else {
             walkingTarget = null
+            progressBarWalkingTarget.progress = 0
             textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit total walked while playing Songle!"
         }
 
@@ -329,15 +344,17 @@ class MainActivity : AppCompatActivity() {
                     progressBar.progress = songsUnlocked.size
                     textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
 
-                    var songToPlayIndex = randomSongIndex(0, songs.size)
-                    while (songsUnlocked.contains(songs[songToPlayIndex])) {
-                        songToPlayIndex = randomSongIndex(0, songs.size)
-                    }
+                    if (songToPlayIndexString == null) {
+                        var songToPlayIndex = randomSongIndex(0, songs.size)
+                        while (songsUnlocked.contains(songs[songToPlayIndex])) {
+                            songToPlayIndex = randomSongIndex(0, songs.size)
+                        }
 
-                    songToPlayIndexString = if (songToPlayIndex < 10) {
-                        "0$songToPlayIndex"
-                    } else {
-                        songToPlayIndex.toString()
+                        songToPlayIndexString = if (songToPlayIndex < 10) {
+                            "0$songToPlayIndex"
+                        } else {
+                            songToPlayIndex.toString()
+                        }
                     }
                 }
             }
@@ -356,6 +373,17 @@ class MainActivity : AppCompatActivity() {
         startActivityForResult(intent, 1)
     }
 
+    override fun onStart() {
+        super.onStart()
+        // Restore preferences
+        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
+
+        songToPlayIndexString = settings.getString("storedSongToPlayIndexString", "?")
+        if (songToPlayIndexString.equals("?")) {
+            songToPlayIndexString = null
+        }
+    }
+
     override fun onPause() {
         super.onPause()
 
@@ -367,8 +395,11 @@ class MainActivity : AppCompatActivity() {
 
         editor.putBoolean("storedDistanceWalkedHidden", distanceWakedHidden)
         editor.putInt("storedDistanceWalked", distanceWalked)
+
         if (walkingTarget != null) {
             editor.putInt("storedWalkingTarget", walkingTarget!!)
+        } else {
+            editor.putInt("storedWalkingTarget", -1)
         }
         editor.putInt("storedWalkingTargetProgress", walkingTargetProgress)
 
@@ -385,6 +416,10 @@ class MainActivity : AppCompatActivity() {
                 .map { it.title }
                 .toSet()
         editor.putStringSet("storedFavourites", titlesFav)
+
+        if (songToPlayIndexString != null) {
+            editor.putString("storedSongToPlayIndexString", songToPlayIndexString)
+        }
         editor.apply()
     }
 
@@ -438,7 +473,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
 
     private inner class NetworkReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {

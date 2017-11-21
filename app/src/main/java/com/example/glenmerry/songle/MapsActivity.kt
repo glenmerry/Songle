@@ -30,19 +30,25 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.Marker
-import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.*
+import com.google.maps.android.data.kml.KmlContainer
 import com.google.maps.android.data.kml.KmlLayer
+import com.google.maps.android.data.kml.KmlPoint
 import org.jetbrains.anko.activityUiThread
 import org.jetbrains.anko.alert
+import org.jetbrains.anko.design.snackbar
+import org.jetbrains.anko.design.snackbarContentLayout
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
+import org.json.JSONArray
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.math.BigDecimal
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, LocationListener, GoogleMap.OnMarkerClickListener {
@@ -61,6 +67,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var guessCount: Int = 0
     private var walkingTarget: Int? = null
     private var walkingTargetProgress = 0.toFloat()
+    private var wordsWithPos = HashMap<String, String>()
+    private var wordsCollected = arrayListOf<String>()
+
+    private val markers = arrayListOf<Marker>()
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_maps, menu)
@@ -131,7 +141,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
         targetMet = intent.extras.getBoolean("targetMet")
 
-        toast("Walking target is $walkingTarget")
         toast("Playing song: ${songs[songToPlayIndexString.toInt()].title}")
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -178,50 +187,81 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
             val layer = KmlLayer(mMap, conn.inputStream, applicationContext)
 
-            val url2 = URL("http://maps.google.com/mapfiles/kml/paddle/ylw-circle.png")
-            bmp = BitmapFactory.decodeStream(url2.openConnection().getInputStream())
-            val bmpResized = Bitmap.createScaledBitmap(bmp, 120, 120, false)
+            val urlVI = URL("http://maps.google.com/mapfiles/kml/paddle/red-stars.png")
+            val urlI = URL("http://maps.google.com/mapfiles/kml/paddle/orange-diamond.png")
+            val urlNB = URL("http://maps.google.com/mapfiles/kml/paddle/ylw-circle.png")
+            val urlB = URL("http://maps.google.com/mapfiles/kml/paddle/ylw-blank.png")
+            val urlU = URL("http://maps.google.com/mapfiles/kml/paddle/wht-blank.png")
+
+            val bmpVI = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlVI.openConnection().getInputStream()), 80, 80, false)
+            val bmpI = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlI.openConnection().getInputStream()), 80, 80, false)
+            val bmpNB = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlNB.openConnection().getInputStream()), 80, 80, false)
+            val bmpB = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlB.openConnection().getInputStream()), 80, 80, false)
+            val bmpU = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlU.openConnection().getInputStream()), 80, 80, false)
+
+            val urlWords = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt")
+
+            val br = BufferedReader(InputStreamReader(urlWords.openStream()))
+            val lines = arrayListOf<String>()
+            var line: String? = null
+
+            while({ line = br.readLine(); line}() != null) {
+                if (line != null) {
+                    lines.add(line!!)
+                }
+            }
 
             activityUiThread {
                 layer.addLayerToMap()
 
-                /*layer.setOnFeatureClickListener(object: Layer.OnFeatureClickListener {
-                    override fun onFeatureClick(feature: Feature) {
-                        feature.getProperty("name")
-                        println(feature.properties)
+                val container = layer.containers.first() as KmlContainer
 
-                        val coordinates = feature.getProperty("point")
+                for (placemark in container.placemarks) {
+                    val name = placemark.getProperty("name")
+                    val wordsInLine = lines[name.substringBefore(':').toInt()-1].split(" ")
+                    wordsWithPos.put(name, wordsInLine[name.substringAfter(':').toInt()-1])
+                    if (!wordsCollected.contains(name)) {
+                        val desc = placemark.getProperty("description")
+                        val point = placemark.geometry as KmlPoint
+                        val ll = LatLng(point.geometryObject.latitude, point.geometryObject.longitude)
+                        val icon: BitmapDescriptor = when (desc) {
+                            "veryinteresting" -> BitmapDescriptorFactory.fromBitmap(bmpVI)
+                            "interesting" -> BitmapDescriptorFactory.fromBitmap(bmpI)
+                            "notboring" -> BitmapDescriptorFactory.fromBitmap(bmpNB)
+                            "boring" -> BitmapDescriptorFactory.fromBitmap(bmpB)
+                            "unclassified" -> BitmapDescriptorFactory.fromBitmap(bmpU)
+                            else -> BitmapDescriptorFactory.fromBitmap(bmpU)
+                        }
 
-                        toast("${feature.id} ${feature.getProperty("name")} clicked")
+                        val marker = mMap.addMarker(MarkerOptions()
+                                .position(ll)
+                                .icon(icon)
+                                .title(desc)
+                        )
+                        marker.tag = name
+                        markers.add(marker)
                     }
-                })*/
-
-                val mGeorgeSq = mMap.addMarker(MarkerOptions()
-                        .position(LatLng(55.9436125635442, -3.18878173828125))
-                        .icon(BitmapDescriptorFactory.fromBitmap(bmpResized))
-                        .title("Not Boring"))
-                mGeorgeSq.tag = 0
-               // mMap.setOnMarkerClickListener(this)
+                }
+                layer.removeLayerFromMap()
             }
         }
     }
 
     override fun onMarkerClick(marker: Marker): Boolean {
-
-        Snackbar.make(findViewById(R.id.map), "You've unlocked a new word! - Galileo", Snackbar.LENGTH_INDEFINITE).show()
         return false
     }
 
     override fun onStart() {
         super.onStart()
         mGoogleApiClient.connect()
+
+        // Restore preferences
+        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
+        wordsCollected.addAll(settings.getStringSet("storedWordsCollected", setOf()))
     }
 
-    override fun onStop() {
-        super.onStop()
-        if (mGoogleApiClient.isConnected) {
-            mGoogleApiClient.disconnect()
-        }
+    override fun onPause() {
+        super.onPause()
 
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
@@ -231,8 +271,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
         editor.putInt("storedDistanceWalked", distanceWalked.toInt())
         editor.putInt("storedWalkingTargetProgress", walkingTargetProgress.toInt())
+        editor.putStringSet("storedWordsCollected", wordsCollected.toSet())
 
         editor.apply()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (mGoogleApiClient.isConnected) {
+            mGoogleApiClient.disconnect()
+        }
     }
 
     private fun createLocationRequest() {
@@ -276,21 +324,26 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
            // println("[onLocationChanged] Lat/long now (${current.latitude}, ${current.longitude})" )
         }
 
-        if (lastLoc.latitude != 0.0) {
-            if (current != null) {
-                val distToAdd = current.distanceTo(lastLoc)
-                distanceWalked += distToAdd
-                if (walkingTarget != null) {
-                    walkingTargetProgress += distToAdd
-                }
+        if (lastLoc.latitude != 0.0 && current != null) {
+            val distToAdd = current.distanceTo(lastLoc)
+            distanceWalked += distToAdd
+            if (walkingTarget != null) {
+                walkingTargetProgress += distToAdd
             }
         }
 
+        var nearestWordAndDist: Pair<Marker, Int>? = null
+        var previousWordAndDist: Pair<Marker, Int>? = null
+
         if (current != null) {
             lastLoc = current
+            if (markers.size != 0) {
+                previousWordAndDist = nearestWordAndDist
+                nearestWordAndDist = nearestMarker(current.longitude, current.latitude)
+            }
         }
 
-        toast("distance changed to $distanceWalked\nWalked $walkingTargetProgress  of target $walkingTarget\n")
+        //toast("distance changed to $distanceWalked\nWalked $walkingTargetProgress  of target $walkingTarget\n")
 
         if (walkingTarget != null && walkingTargetProgress >= walkingTarget!! && !targetMet) {
             targetMet = true
@@ -324,21 +377,45 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             } .show()
         }
 
-        Snackbar
-                .make(findViewById(R.id.map), "Nearest word is 5m away", Snackbar.LENGTH_INDEFINITE)
-                .setAction("COLLECT") {
-
-                    alert("Galileo","You collected a new word!") {
-                        negativeButton("Collected words") {
-                            val intent = Intent(applicationContext, WordsCollectedActivity::class.java)
-                            startActivity(intent)
-                        }
-                        positiveButton("Make guess") {
-                            makeGuess()
-                        }
+        if (nearestWordAndDist != null && nearestWordAndDist.second <= 30) {
+            Snackbar
+                    .make(findViewById(R.id.map),"Nearest word is ${nearestWordAndDist.second}m away", Snackbar.LENGTH_INDEFINITE)
+                    .setAction("COLLECT") {
+                        nearestWordAndDist!!.first.isVisible = false
+                        wordsCollected.add(nearestWordAndDist!!.first.tag as String)
+                        println(">>>collected word ${nearestWordAndDist!!.first.tag as String}")
+                        alert("\"${wordsWithPos[nearestWordAndDist!!.first.tag]}\"","You collected a new word!") {
+                            negativeButton("Collected words") {
+                                val intent = Intent(applicationContext, WordsCollectedActivity::class.java)
+                                startActivity(intent)
+                            }
+                            positiveButton("Make guess") {
+                                makeGuess()
+                            }
+                        }.show()
+                        onLocationChanged(current)
                     }.show()
+        } else if (nearestWordAndDist != null) {
+            Snackbar.make(findViewById(R.id.map), "Nearest word is ${nearestWordAndDist.second}m away", Snackbar.LENGTH_INDEFINITE).show()
+        }
+    }
 
-                }.show()
+    private fun nearestMarker(long: Double, lat: Double): Pair<Marker, Int> {
+        var currentMin = 1000000F
+        var currentResult = markers[0]
+        val results = FloatArray(10)
+        markers.forEach { marker ->
+            Location.distanceBetween(lat, long, marker.position.latitude, marker.position.longitude, results)
+            if (results[0] < currentMin) {
+                if (marker.isVisible) {
+                    currentResult = marker
+                    currentMin = results[0]
+                } else {
+                    println("found invisible marker")
+                }
+            }
+        }
+        return Pair(currentResult, currentMin.toInt())
     }
 
     override fun onConnectionSuspended(flag : Int) {
