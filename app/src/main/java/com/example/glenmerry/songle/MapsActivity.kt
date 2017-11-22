@@ -3,7 +3,6 @@ package com.example.glenmerry.songle
 import android.Manifest
 import android.app.Activity
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -34,21 +33,12 @@ import com.google.android.gms.maps.model.*
 import com.google.maps.android.data.kml.KmlContainer
 import com.google.maps.android.data.kml.KmlLayer
 import com.google.maps.android.data.kml.KmlPoint
-import org.jetbrains.anko.activityUiThread
-import org.jetbrains.anko.alert
-import org.jetbrains.anko.design.snackbar
-import org.jetbrains.anko.design.snackbarContentLayout
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.toast
-import org.json.JSONArray
+import org.jetbrains.anko.*
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.math.BigDecimal
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, LocationListener, GoogleMap.OnMarkerClickListener {
@@ -62,13 +52,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var songToPlayIndexString = "01"
     private var distanceWalked = 0.toFloat()
     private lateinit var lastLoc: Location
-    private var targetMet = false // Probably dont need this!
+    private var targetMet = false
     private var songsSkipped = arrayListOf<Song>()
+    private var songsUnlocked = arrayListOf<Song>()
     private var guessCount: Int = 0
     private var walkingTarget: Int? = null
     private var walkingTargetProgress = 0.toFloat()
     private var wordsWithPos = HashMap<String, String>()
     private var wordsCollected = arrayListOf<String>()
+    private var skip = false
 
     private val markers = arrayListOf<Marker>()
 
@@ -99,8 +91,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         item.itemId == R.id.action_skip -> {
             alert("Are you sure you want to skip this song?") {
                 positiveButton("Yes please") {
-                    songsSkipped.add(songs[songToPlayIndexString.toInt()])
-                    toast("Skipped song ${songs[songToPlayIndexString.toInt()].title}")
+                    songsSkipped.add(songs[songToPlayIndexString.toInt()-1])
+                    skip = true
+                    onBackPressed()
+                    toast("Skipped song ${songs[songToPlayIndexString.toInt()-1].title}")
                 }
                 negativeButton("No thanks") {}
             }.show()
@@ -109,10 +103,60 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         item.itemId == R.id.action_hint -> {
             alert("Want a hint?") {
                 positiveButton("Yes please!") {
-                    alert("\n\"Magnifico\"\n\nThink you've got it now?","Here's a word that might help...") {
-                        positiveButton("Yep!") {makeGuess()}
-                        negativeButton("Not yet - keep playing") {}
-                    }.show()
+                    var hintWord: String
+
+                    val maxInterest = when (difficulty) {
+                        1 -> "unclassified"
+                        2 -> "notboring"
+                        3 -> "interesting"
+                        4 -> "interesting"
+                        5 -> "veryinteresting"
+                        else -> "noDifficultyError"
+                    }
+
+                    var hintMarker: Marker = markers[0]
+                    var hintTag: String? = null
+
+
+                    for (marker in markers) {
+                        if (marker.title == maxInterest && !wordsCollected.contains(marker.tag)) {
+                            hintMarker = marker
+                            hintTag = marker.tag as String
+                            break
+                        }
+                    }
+
+                    println(hintTag)
+                    println(maxInterest)
+
+                    if (hintTag != null && maxInterest != "noDifficultyError") {
+
+                        doAsync {
+
+                            val urlWords = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt")
+
+                            val br = BufferedReader(InputStreamReader(urlWords.openStream()))
+                            val lines = arrayListOf<String>()
+                            var line: String? = null
+
+                            while ({ line = br.readLine(); line }() != null) {
+                                if (line != null) {
+                                    lines.add(line!!)
+                                }
+                            }
+
+                            uiThread {
+                                hintMarker.isVisible = false
+                                wordsCollected.add(hintMarker.tag as String)
+                                println(wordsCollected)
+                                hintWord = lines[hintTag!!.substringBefore(':').toInt() - 1].split(" ")[hintTag!!.substringAfter(':').toInt() - 1]
+                                alert("\n\"$hintWord\"\n\nThink you've got it now?", "Here's a word that might help...") {
+                                    positiveButton("Yep!") { makeGuess() }
+                                    negativeButton("Not yet - keep playing") {}
+                                }.show()
+                            }
+                        }
+                    }
                 }
                 negativeButton("No I'm fine thanks") {}
             }.show()
@@ -132,6 +176,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         difficulty = intent.extras.getInt("difficulty")
         songToPlayIndexString = intent.extras.getString("songToPlay")
         songsSkipped = intent.extras.getParcelableArrayList("songsSkipped")
+        songsUnlocked = intent.extras.getParcelableArrayList("songsUnlocked")
         distanceWalked = intent.extras.getInt("distanceWalked").toFloat()
         walkingTarget = intent.extras.getInt("walkingTarget")
         if (walkingTarget == 0) {
@@ -141,7 +186,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
         targetMet = intent.extras.getBoolean("targetMet")
 
-        toast("Playing song: ${songs[songToPlayIndexString.toInt()].title}")
+        toast("Playing song: ${songs[songToPlayIndexString.toInt()-1].title}")
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
@@ -161,8 +206,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         lastLoc.latitude = 0.0
         lastLoc.longitude = 0.0
     }
-
-    private lateinit var bmp: Bitmap
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
@@ -247,9 +290,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
     }
 
-    override fun onMarkerClick(marker: Marker): Boolean {
-        return false
-    }
+    override fun onMarkerClick(marker: Marker): Boolean = false
 
     override fun onStart() {
         super.onStart()
@@ -272,6 +313,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         editor.putInt("storedDistanceWalked", distanceWalked.toInt())
         editor.putInt("storedWalkingTargetProgress", walkingTargetProgress.toInt())
         editor.putStringSet("storedWordsCollected", wordsCollected.toSet())
+        val titlesSkipped = songsSkipped
+                .map { it.title }
+                .toSet()
+        editor.putStringSet("storedSongsSkipped", titlesSkipped)
 
         editor.apply()
     }
@@ -333,17 +378,19 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
 
         var nearestWordAndDist: Pair<Marker, Int>? = null
-        var previousWordAndDist: Pair<Marker, Int>? = null
 
         if (current != null) {
             lastLoc = current
             if (markers.size != 0) {
-                previousWordAndDist = nearestWordAndDist
                 nearestWordAndDist = nearestMarker(current.longitude, current.latitude)
             }
         }
 
         //toast("distance changed to $distanceWalked\nWalked $walkingTargetProgress  of target $walkingTarget\n")
+
+        if (nearestWordAndDist != null && nearestWordAndDist.second == 1000000) {
+            return
+        }
 
         if (walkingTarget != null && walkingTargetProgress >= walkingTarget!! && !targetMet) {
             targetMet = true
@@ -436,8 +483,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         if (walkingTarget != null) {
             intent.putExtra("returnWalkingTarget", walkingTarget!!)
         }
-
         intent.putExtra("returnWalkingTargetProgress", walkingTargetProgress.toInt())
+        if (skip) {
+            intent.putExtra("returnSkip", skip)
+        }
         setResult(Activity.RESULT_OK, intent)
         finish()
     }

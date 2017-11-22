@@ -34,7 +34,7 @@ class WordsCollectedActivity : AppCompatActivity() {
 
 
         doAsync {
-            val url = URL(("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/01/lyrics.txt"))
+            val url = URL(("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt"))
             val lyrics = url.readText()
 
             activityUiThread {

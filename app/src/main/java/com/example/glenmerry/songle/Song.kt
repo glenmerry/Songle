@@ -7,9 +7,7 @@ data class Song(val number: String, val artist: String, val title: String, val l
 
     constructor(source: Parcel): this(source.readString(), source.readString(), source.readString(), source.readString())
 
-    override fun describeContents(): Int {
-        return 0
-    }
+    override fun describeContents(): Int = 0
 
     override fun writeToParcel(dest: Parcel?, flags: Int) {
         dest?.writeString(this.number)
@@ -21,12 +19,8 @@ data class Song(val number: String, val artist: String, val title: String, val l
     companion object {
         @JvmField
         val CREATOR: Parcelable.Creator<Song> = object : Parcelable.Creator<Song> {
-            override fun createFromParcel(source: Parcel): Song{
-                return Song(source)
-            }
-            override fun newArray(size: Int): Array<Song?> {
-                return arrayOfNulls(size)
-            }
+            override fun createFromParcel(source: Parcel): Song = Song(source)
+            override fun newArray(size: Int): Array<Song?> = arrayOfNulls(size)
         }
     }
 }

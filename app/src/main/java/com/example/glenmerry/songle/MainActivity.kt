@@ -17,10 +17,11 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
-import android.widget.ProgressBar
-import android.widget.TextView
 import kotlinx.android.synthetic.main.content_main.*
-import org.jetbrains.anko.*
+import org.jetbrains.anko.activityUiThread
+import org.jetbrains.anko.alert
+import org.jetbrains.anko.doAsync
+import org.jetbrains.anko.selector
 import org.xmlpull.v1.XmlPullParserException
 import java.io.IOException
 import java.io.InputStream
@@ -28,6 +29,7 @@ import java.math.BigDecimal
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
+import kotlin.collections.ArrayList
 
 var favourites = arrayListOf<Song>()
 var songs = listOf<Song>()
@@ -50,9 +52,11 @@ class MainActivity : AppCompatActivity() {
     private var distanceWakedHidden = false
     private var titlesUnlockedLoad = mutableSetOf<String>()
     private var titlesFavLoad = mutableSetOf<String>()
+    private var titlesSkippedLoad = mutableSetOf<String>()
     private var songsSkipped = arrayListOf<Song>()
     private val songsUnlocked: ArrayList<Song> = ArrayList()
     private var songToPlayIndexString: String? = null
+    private var resetTriggered = false
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_main, menu)
@@ -66,31 +70,11 @@ class MainActivity : AppCompatActivity() {
         R.id.action_reset -> {
             alert("All progress will be lost!", "Are you sure you want to reset the game?") {
                 positiveButton("Yes, I'm sure") {
-                    songsUnlocked.clear()
-                    progressBar.progress = songsUnlocked.size
-                    textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
-                    selectedDifficulty = null
-                    textViewShowDiff.text = ""
-                    distanceWalked = 0
-                    distanceWalkedWithUnit = "0m"
-                    walkingTarget = null
-                    walkingTargetWithUnit = ""
-                    progressBarWalkingTarget.progress = 0
-                    textViewProgressWalkingTarget.text = ""
-                    if (songs.isNotEmpty()) {
-                        var songToPlayIndex = randomSongIndex(0, songs.size)
-                        while (songsUnlocked.contains(songs[songToPlayIndex])) {
-                            songToPlayIndex = randomSongIndex(0, songs.size)
-                        }
-
-                        songToPlayIndexString = if (songToPlayIndex < 10) {
-                            "0$songToPlayIndex"
-                        } else {
-                            songToPlayIndex.toString()
-                        }
-                    } else {
-                        songToPlayIndexString = "01"
-                    }
+                    this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
+                    resetTriggered = true
+                    val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    startActivity(intent)
                 }
                 negativeButton("No, abort") {}
             }.show()
@@ -128,9 +112,11 @@ class MainActivity : AppCompatActivity() {
             /*val intent = Intent(this, HelpActivity::class.java)
             startActivity(intent)
             true*/
-            songsUnlocked.add(songs[randomSongIndex(0, songs.size)])
+            songsUnlocked.add(songs[randomiser(0, songs.size)])
+            println("songs unlocked size  now ${songsUnlocked.size}")
             progressBar.progress = songsUnlocked.size
             textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
+            downloadSongs()
             true
         }
         else -> super.onOptionsItemSelected(item)
@@ -144,10 +130,12 @@ class MainActivity : AppCompatActivity() {
         val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
         this.registerReceiver(receiver, filter)
 
+        textViewProgress.text = ""
+
         downloadSongs()
 
         buttonPlay.setOnClickListener {
-            if (songs.isNotEmpty()) {
+            if (!connectionLost) {
                 if (selectedDifficulty != null) {
                     startMaps()
                 } else {
@@ -158,8 +146,8 @@ class MainActivity : AppCompatActivity() {
                     })
                 }
             } else {
-                alert("Please check your internet connection", "Song list has not yet downloaded") {
-                    positiveButton("Ok") {downloadSongs()}
+                alert("Please check your internet connection", "Songle is unable to connect") {
+                    positiveButton("Ok") { }
                 }.show()
             }
         }
@@ -186,10 +174,6 @@ class MainActivity : AppCompatActivity() {
                 textViewProgressWalkingTarget.text = "Congratulations you've reached your walking target of $walkingTarget, set a new one?"
             }
         }
-/*
-        progressBarWalkingTarget.max = 1000
-        progressBarWalkingTarget.progress = 420
-        textViewProgressWalkingTarget.text = "420m walked of 1km target!\n2.5km total walked while playing Songle!"*/
 
         buttonSetTarget.setOnClickListener {
             val alert = AlertDialog.Builder(this)
@@ -313,7 +297,6 @@ class MainActivity : AppCompatActivity() {
             progressBarWalkingTarget.progress = 0
             textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit total walked while playing Songle!"
         }
-
     }
 
     private fun downloadSongs() {
@@ -326,17 +309,16 @@ class MainActivity : AppCompatActivity() {
                 println("Error parsing XML")
             }
             activityUiThread {
-                if (songs.isEmpty()) {
-                    alert("Please check your internet connection", "Error downloading song list") {
-                        positiveButton("Try Again") {downloadSongs()}
-                    }.show()
-                } else {
+                if (songs.isNotEmpty()) {
                     for (song in songs) {
                         if (titlesUnlockedLoad.contains(song.title)) {
                             songsUnlocked.add(song)
                         }
                         if (titlesFavLoad.contains(song.title)) {
                             favourites.add(song)
+                        }
+                        if (titlesSkippedLoad.contains(song.title)) {
+                            songsSkipped.add(song)
                         }
                         println(song)
                     }
@@ -345,10 +327,7 @@ class MainActivity : AppCompatActivity() {
                     textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
 
                     if (songToPlayIndexString == null) {
-                        var songToPlayIndex = randomSongIndex(0, songs.size)
-                        while (songsUnlocked.contains(songs[songToPlayIndex])) {
-                            songToPlayIndex = randomSongIndex(0, songs.size)
-                        }
+                        val songToPlayIndex = getSongIndex()
 
                         songToPlayIndexString = if (songToPlayIndex < 10) {
                             "0$songToPlayIndex"
@@ -366,6 +345,7 @@ class MainActivity : AppCompatActivity() {
         intent.putExtra("difficulty", selectedDifficulty!!)
         intent.putExtra("songToPlay", songToPlayIndexString)
         intent.putExtra("songsSkipped", songsSkipped)
+        intent.putExtra("songsUnlocked", songsUnlocked)
         intent.putExtra("distanceWalked", distanceWalked)
         intent.putExtra("walkingTarget", walkingTarget)
         intent.putExtra("walkingTargetProgress", walkingTargetProgress)
@@ -380,12 +360,26 @@ class MainActivity : AppCompatActivity() {
 
         songToPlayIndexString = settings.getString("storedSongToPlayIndexString", "?")
         if (songToPlayIndexString.equals("?")) {
+            println("Main Activity >>>> Song to play index string set to null")
             songToPlayIndexString = null
+        }
+
+        titlesSkippedLoad = settings.getStringSet("storedSongsSkipped", setOf(""))
+
+        if (songs.isNotEmpty()) {
+            songs
+                    .filter { titlesSkippedLoad.contains(it.title) }
+                    .forEach { songsSkipped.add(it) }
         }
     }
 
     override fun onPause() {
         super.onPause()
+
+        if (resetTriggered) {
+            // If game has been reset, return early and do not store shared preferences
+            return
+        }
 
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
@@ -470,6 +464,22 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit total walked while playing Songle!"
                 }
+
+                val skip = data.getBooleanExtra("returnSkip", false)
+                if (skip) {
+                    if (songToPlayIndexString != null && !songsSkipped.contains(songs[songToPlayIndexString!!.toInt()])) {
+                        songsSkipped.add(songs[songToPlayIndexString!!.toInt()-1])
+                    }
+                    val songToPlayIndex = getSongIndex() + 1
+                    songToPlayIndexString = if (songToPlayIndex < 10) {
+                        "0$songToPlayIndex"
+                    } else {
+                        songToPlayIndex.toString()
+                    }
+                    println("song to play index is >>>> $songToPlayIndex")
+                    startMaps()
+
+                }
             }
         }
     }
@@ -486,6 +496,9 @@ class MainActivity : AppCompatActivity() {
                             "Connected", Snackbar.LENGTH_SHORT)
                     snackbar.show()
                     connectionLost = false
+                    if (songs.isEmpty()) {
+                        downloadSongs()
+                    }
                 }
             } else {
                 // No network connection
@@ -523,8 +536,43 @@ class MainActivity : AppCompatActivity() {
         return conn.inputStream
     }
 
-    private fun randomSongIndex(from: Int, to: Int): Int {
+    fun randomiser(from: Int, to: Int): Int {
         val random = Random()
         return random.nextInt(to - from) + from
+    }
+
+    fun getSongIndex(): Int {
+
+        println("songs unlocked: $songsUnlocked")
+        println("songs skipped: $songsSkipped")
+
+        val lockedIndices = arrayListOf<Int>()
+        val skippedIndices = arrayListOf<Int>()
+
+        songs.indices.filterNotTo(lockedIndices) { songsUnlocked.contains(songs[it]) }
+        songs.indices.filterTo(skippedIndices) { songsSkipped.contains(songs[it]) }
+
+        return when {
+            songsSkipped.size == 0 -> {
+                // if no songs skipped then randomise locked songs
+                println("getting new song index >>>> no songs skipped, randomise locked songs")
+                println("locked indices: $lockedIndices")
+                lockedIndices[randomiser(0, lockedIndices.size-1)]
+            }
+            lockedIndices == skippedIndices -> {
+                // if all locked songs skipped then randomise skipped songs
+                println("getting new song index >>>> all locked songs skipped, randomise skipped songs")
+                skippedIndices[randomiser(0, skippedIndices.size-1)]
+            }
+            else -> {
+                // if only some locked songs skipped then randomise unskipped locked songs
+                println("getting new song index >>>> some locked songs skipped, randomise unskipped locked songs")
+                println("locked indices >>>>>> $lockedIndices")
+                println("skipped indices >>>>>>> $skippedIndices")
+                lockedIndices.removeAll(skippedIndices)
+                println(">>> locked songs after removing skips: $lockedIndices")
+                lockedIndices[randomiser(0, lockedIndices.size-1)]
+            }
+        }
     }
 }
