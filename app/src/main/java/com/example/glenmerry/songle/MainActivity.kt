@@ -467,7 +467,7 @@ class MainActivity : AppCompatActivity() {
 
                 val skip = data.getBooleanExtra("returnSkip", false)
                 if (skip) {
-                    if (songToPlayIndexString != null && !songsSkipped.contains(songs[songToPlayIndexString!!.toInt()])) {
+                    if (songToPlayIndexString != null && !songsSkipped.contains(songs[songToPlayIndexString!!.toInt()-1])) {
                         songsSkipped.add(songs[songToPlayIndexString!!.toInt()-1])
                     }
                     val songToPlayIndex = getSongIndex() + 1
@@ -478,7 +478,23 @@ class MainActivity : AppCompatActivity() {
                     }
                     println("song to play index is >>>> $songToPlayIndex")
                     startMaps()
+                }
 
+                val unlocked = data.getBooleanExtra("returnUnlocked", false)
+                if (unlocked) {
+                    if (songToPlayIndexString != null && !songsUnlocked.contains(songs[songToPlayIndexString!!.toInt()-1])) {
+                        songsUnlocked.add(songs[songToPlayIndexString!!.toInt()-1])
+                    }
+                    progressBar.progress++
+                    textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
+                    val songToPlayIndex = getSongIndex() + 1
+                    songToPlayIndexString = if (songToPlayIndex < 10) {
+                        "0$songToPlayIndex"
+                    } else {
+                        songToPlayIndex.toString()
+                    }
+                    println("song to play index is >>>> $songToPlayIndex")
+                    startMaps()
                 }
             }
         }

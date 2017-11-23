@@ -61,6 +61,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var wordsWithPos = HashMap<String, String>()
     private var wordsCollected = arrayListOf<String>()
     private var skip = false
+    private var unlocked = false
 
     private val markers = arrayListOf<Marker>()
 
@@ -81,6 +82,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             val intent = Intent(this, WordsCollectedActivity::class.java)
             intent.putExtra("songToPlay", songToPlayIndexString)
             intent.putExtra("guessCount", guessCount)
+            intent.putExtra("wordsCollected", wordsCollected)
+            intent.putExtra("wordsWithPos", wordsWithPos)
             startActivityForResult(intent, 1)
             true
         }
@@ -149,7 +152,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                                 hintMarker.isVisible = false
                                 wordsCollected.add(hintMarker.tag as String)
                                 println(wordsCollected)
-                                hintWord = lines[hintTag!!.substringBefore(':').toInt() - 1].split(" ")[hintTag!!.substringAfter(':').toInt() - 1]
+                                hintWord = lines[hintTag!!.substringBefore(':').toInt()-1].split(" ")[hintTag!!.substringAfter(':').toInt()-1]
                                 alert("\n\"$hintWord\"\n\nThink you've got it now?", "Here's a word that might help...") {
                                     positiveButton("Yep!") { makeGuess() }
                                     negativeButton("Not yet - keep playing") {}
@@ -487,6 +490,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         if (skip) {
             intent.putExtra("returnSkip", skip)
         }
+        if (unlocked) {
+            intent.putExtra("returnUnlocked", unlocked)
+        }
         setResult(Activity.RESULT_OK, intent)
         finish()
     }
@@ -510,24 +516,27 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         input.inputType = InputType.TYPE_CLASS_TEXT
         builder.setView(input)
         builder.setPositiveButton("Make Guess!") { _, _ ->
-            if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()].title.toLowerCase()) {
+            if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()-1].title.toLowerCase()) {
+                songsUnlocked.add(songs[songToPlayIndexString.toInt()-1])
+                wordsCollected.clear()
+                wordsWithPos.clear()
                 val builderCorrect = AlertDialog.Builder(this)
                 builderCorrect.setTitle("Nice one, you guessed correctly!")
                 builderCorrect.setMessage("View the full lyrics, share with your friends or move to the next song?")
                 builderCorrect.setPositiveButton("Next Song") { _, _ ->
-                    val intent = Intent(this, MapsActivity::class.java)
-                    startActivity(intent)
+                    unlocked = true
+                    onBackPressed()
                 }
                 builderCorrect.setNegativeButton("View Lyrics") { _, _ ->
                     val intent = Intent(this, SongDetailActivity::class.java)
-                    intent.putExtra("song", songs[songToPlayIndexString.toInt()])
+                    intent.putExtra("song", songs[songToPlayIndexString.toInt()-1])
                     startActivity(intent)
                 }
                 builderCorrect.setNeutralButton("Share") { _, _ ->
                     val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
                     sharingIntent.type = "text/plain"
                     sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
-                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked Bohemian Rhapsody by Queen on Songle!")
+                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked ${songs[songToPlayIndexString.toInt()-1].title} by ${songs[songToPlayIndexString.toInt()-1].artist} on Songle!")
                     startActivity(Intent.createChooser(sharingIntent, "Share via"))
                 }
                 builderCorrect.show()

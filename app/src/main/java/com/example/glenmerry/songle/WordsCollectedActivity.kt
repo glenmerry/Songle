@@ -13,6 +13,7 @@ import kotlinx.android.synthetic.main.activity_words_found.*
 import org.jetbrains.anko.activityUiThread
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
+import java.io.Serializable
 import java.net.URL
 
 class WordsCollectedActivity : AppCompatActivity() {
@@ -20,18 +21,26 @@ class WordsCollectedActivity : AppCompatActivity() {
     private val wordsFound = HashMap<String, String>()
     private var songToPlayIndexString = "01"
     private var guessCount:Int = 0
+    private var wordsCollected = arrayListOf<String>()
+    private var wordsWithPos = HashMap<String, String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_words_found)
 
         songToPlayIndexString = intent.extras.getString("songToPlay")
+        println("Song name >>>>> ${songs[songToPlayIndexString.toInt()-1].title}")
         guessCount = intent.extras.getInt("guessCount")
+        println("Guesses made >>>>> $guessCount ")
+        wordsCollected = intent.extras.getStringArrayList("wordsCollected")
+        println("Words collected >>>>> $wordsCollected")
+        wordsWithPos = intent.extras.getSerializable("wordsWithPos") as HashMap<String, String>
+        println("Words with positions >>>>> $wordsWithPos")
 
-        wordsFound.put("13:0", "Mama")
-        wordsFound.put("28:8", "truth")
-        wordsFound.put("3:4", "landslide")
-
+        wordsCollected
+                .filter { wordsWithPos.containsKey(it) }
+                .forEach { wordsFound.put(it, wordsWithPos[it]!!) }
+        println("Words Found >>>>> $wordsFound")
 
         doAsync {
             val url = URL(("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt"))
@@ -44,31 +53,58 @@ class WordsCollectedActivity : AppCompatActivity() {
                     lyricsLines.put(i, lines[i])
                 }
 
+                println("Lyrics lines >>>>> $lyricsLines")
+
                 val regex = Regex("[a-zA-Z0-9]")
                 val blockedOut = lyrics.replace(regex, "█")
 
-                var blockedOutLines = blockedOut.split("\n").toCollection(ArrayList())
+                val blockedOutLines = blockedOut.split("\n").toCollection(ArrayList())
+
+                println("Blocked Out Lines >>>>> $blockedOutLines")
 
                 for (word in wordsFound) {
                     val oldLine = blockedOutLines[word.key.substringBefore(':').toInt()-1]
-                    var wordArray = oldLine.split(Regex("[^a-zA-Z0-9█]")).toCollection(ArrayList())
-                    println(wordArray)
-                    wordArray[word.key.substringAfter(':').toInt()] = word.value
-                    val newLine = StringBuilder()
-                    println(wordArray.indices)
-                    for (i in 0..wordArray.size-2) {
-                        if (i == word.key.substringAfter(':').toInt()-1) {
-                            println("i $i word index: ${word.key.substringAfter(':').toInt()-1}")
-                            newLine.append("${word.value} ")
-                            println("append real word")
-                            println(newLine.toString())
-                        } else {
-                            newLine.append("${wordArray[i]} ")
-                            println("append blocks")
-                            println(newLine.toString())
+                    println("Old line >>>>> $oldLine")
+
+                    val wordStartIndices = HashMap<Int, Int>()
+                    var wordCount = 1
+                    wordStartIndices.put(1, 0)
+
+                    for (i in 1 until oldLine.length-1) {
+                        if (oldLine[i] == ' ') {
+                            wordCount++
+                            wordStartIndices.put(wordCount, i)
                         }
                     }
-                    newLine.append(lines[word.key.substringBefore(':').toInt()-1].last())
+
+                    val wordAddStartIndex = wordStartIndices[word.key.substringAfter(':').toInt()]
+                    var wordAddEndIndex: Int = -1
+
+                    for (i in wordAddStartIndex!!+1 until oldLine.length) {
+                        if (oldLine[i] == ' ') {
+                            println("space at index $i")
+                            wordAddEndIndex = i-1
+                            break
+                        }
+                    }
+
+                    println("Word start index is $wordAddStartIndex and word end index $wordAddEndIndex")
+
+                    val newLine = StringBuilder()
+
+                    for (i in 0 until wordAddStartIndex) {
+                        newLine.append(oldLine[i])
+                    }
+
+                    newLine.append("${word.value}")
+
+                    if (wordAddEndIndex != -1) {
+                        for (i in wordAddEndIndex+1 until oldLine.length) {
+                            newLine.append(oldLine[i])
+                        }
+                    }
+
+
                     blockedOutLines[word.key.substringBefore(':').toInt()-1] = newLine.toString()
                 }
 
@@ -77,7 +113,7 @@ class WordsCollectedActivity : AppCompatActivity() {
                     newLyrics.append("$line\n")
                 }
 
-                textViewWords.text = blockedOut
+                textViewWords.text = newLyrics
 
             }
         }
@@ -108,8 +144,6 @@ class WordsCollectedActivity : AppCompatActivity() {
     }
 
     private fun makeGuess() {
-        //toast(song.title.toLowerCase())
-
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Make a guess")
         builder.setMessage("Please input the song title")
