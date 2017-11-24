@@ -2,52 +2,25 @@ package com.example.glenmerry.songle
 
 import android.app.Activity
 import android.content.Context
-import android.support.v7.app.AppCompatActivity
-import android.os.Bundle
-import kotlinx.android.synthetic.main.activity_song_detail.*
 import android.content.Intent
 import android.net.Uri
-import android.text.method.ScrollingMovementMethod
+import android.os.Bundle
+import android.support.design.widget.FloatingActionButton
+import android.support.v4.content.ContextCompat
+import android.support.v7.app.AppCompatActivity
+import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
-import java.net.URL
+import android.widget.TextView
+import kotlinx.android.synthetic.main.activity_song_detail.*
 import org.jetbrains.anko.activityUiThread
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
-import android.support.design.widget.FloatingActionButton
-import android.support.v4.content.ContextCompat
-import android.widget.ShareActionProvider
-import android.widget.TextView
-import android.view.LayoutInflater
+import java.net.URL
 
 class SongDetailActivity : AppCompatActivity() {
 
     private lateinit var song: Song
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_song_detail, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
-        item.itemId == android.R.id.home -> {
-            onBackPressed()
-            true
-        }
-        item.itemId == R.id.action_share -> {
-            val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
-            sharingIntent.type = "text/plain"
-            sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
-            sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked ${song.title} by ${song.artist} on Songle!")
-            startActivity(Intent.createChooser(sharingIntent, "Share via"))
-            true
-        }
-        item.itemId == R.id.action_play -> {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(song.link)))
-            true
-        }
-        else -> false
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,6 +71,31 @@ class SongDetailActivity : AppCompatActivity() {
                 textViewLyrics.text = lyrics
             }
         }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_song_detail, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
+        item.itemId == android.R.id.home -> {
+            onBackPressed()
+            true
+        }
+        item.itemId == R.id.action_share -> {
+            val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
+            sharingIntent.type = "text/plain"
+            sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
+            sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked ${song.title} by ${song.artist} on Songle!")
+            startActivity(Intent.createChooser(sharingIntent, "Share via"))
+            true
+        }
+        item.itemId == R.id.action_play -> {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(song.link)))
+            true
+        }
+        else -> false
     }
 
     override fun onBackPressed() {

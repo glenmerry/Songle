@@ -3,22 +3,57 @@ package com.example.glenmerry.songle
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.*
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.ListView
 import org.jetbrains.anko.toast
 
 class SongsUnlockedActivity : AppCompatActivity() {
 
-    private lateinit var songsUnlocked: ArrayList<Song>
     private var artistAndTitles = ArrayList<String>()
     private lateinit var indexInSongs: ArrayList<Int>
-   // private var favourites = arrayListOf<Song>()
-    private lateinit var adapter: ArrayAdapter<String>
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_songs_unlocked)
+        supportActionBar!!.setDisplayHomeAsUpEnabled(true)
+
+        indexInSongs = arrayListOf()
+
+        for (i in songs.indices) {
+            if (songsUnlocked.contains(songs[i])) {
+                artistAndTitles.add("${songs[i].artist} - ${songs[i].title}")
+                indexInSongs.add(i)
+            } else {
+                artistAndTitles.add("\uD83D\uDD12")
+                indexInSongs.add(i)
+            }
+        }
+        val sortedArray = Array(artistAndTitles.size) {""}
+        for (i in artistAndTitles.indices) {
+            var start = 0
+            var end = artistAndTitles.size-1
+            for (j in artistAndTitles.indices) {
+                if (artistAndTitles[j] == "\uD83D\uDD12") {
+                    sortedArray[end--] = artistAndTitles[j]
+                } else {
+                    sortedArray[start++] = artistAndTitles[j]
+                }
+            }
+        }
+        artistAndTitles = sortedArray.toCollection(ArrayList())
+        for (i in artistAndTitles.indices) {
+            songs.indices
+                    .filter { "${songs[it].artist} - ${songs[it].title}" == artistAndTitles[i] }
+                    .forEach { indexInSongs[i] = it }
+        }
+        showList(artistAndTitles, indexInSongs)
+    }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_songs_unlocked, menu)
@@ -53,44 +88,6 @@ class SongsUnlockedActivity : AppCompatActivity() {
         else -> false
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_songs_unlocked)
-        supportActionBar!!.setDisplayHomeAsUpEnabled(true)
-
-        songsUnlocked = intent.extras.getParcelableArrayList("songsUnlocked")
-        indexInSongs = arrayListOf()
-
-        for (i in songs.indices) {
-            if (songsUnlocked.contains(songs[i])) {
-                artistAndTitles.add("${songs[i].artist} - ${songs[i].title}")
-                indexInSongs.add(i)
-            } else {
-                artistAndTitles.add("\uD83D\uDD12")
-                indexInSongs.add(i)
-            }
-        }
-        val sortedArray = Array(artistAndTitles.size) {""}
-        for (i in artistAndTitles.indices) {
-            var start = 0
-            var end = artistAndTitles.size-1
-            for (j in artistAndTitles.indices) {
-                if (artistAndTitles[j] == "\uD83D\uDD12") {
-                    sortedArray[end--] = artistAndTitles[j]
-                } else {
-                    sortedArray[start++] = artistAndTitles[j]
-                }
-            }
-        }
-        artistAndTitles = sortedArray.toCollection(ArrayList())
-        for (i in artistAndTitles.indices) {
-            songs.indices
-                    .filter { "${songs[it].artist} - ${songs[it].title}" == artistAndTitles[i] }
-                    .forEach { indexInSongs[i] = it }
-        }
-        showList(artistAndTitles, indexInSongs)
-    }
-
     private fun showList(artistAndTitles: ArrayList<String>, indexInSongs: ArrayList<Int>) {
         val listView = findViewById(R.id.list) as ListView
         val adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, artistAndTitles)
@@ -119,8 +116,6 @@ class SongsUnlockedActivity : AppCompatActivity() {
                 .map { it.title }
                 .toSet()
         editor.putStringSet("storedFavourites", titlesFav)
-        editor.apply()
-
         editor.apply()
     }
 

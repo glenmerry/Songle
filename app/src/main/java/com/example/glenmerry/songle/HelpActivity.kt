@@ -1,20 +1,12 @@
 package com.example.glenmerry.songle
 
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.support.v7.app.AppCompatActivity
 import android.text.Html
 import android.view.MenuItem
 import kotlinx.android.synthetic.main.activity_help.*
 
 class HelpActivity : AppCompatActivity() {
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
-        item.itemId == android.R.id.home -> {
-            onBackPressed()
-            true
-        }
-        else -> false
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,5 +31,13 @@ class HelpActivity : AppCompatActivity() {
 
         , Html.FROM_HTML_MODE_LEGACY)//FromHTML depracated in Android N, maybe change to different option?
 
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
+        item.itemId == android.R.id.home -> {
+            onBackPressed()
+            true
+        }
+        else -> false
     }
 }

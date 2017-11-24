@@ -54,7 +54,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private lateinit var lastLoc: Location
     private var targetMet = false
     private var songsSkipped = arrayListOf<Song>()
-    private var songsUnlocked = arrayListOf<Song>()
     private var guessCount: Int = 0
     private var walkingTarget: Int? = null
     private var walkingTargetProgress = 0.toFloat()
@@ -62,8 +61,47 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var wordsCollected = arrayListOf<String>()
     private var skip = false
     private var unlocked = false
-
     private val markers = arrayListOf<Marker>()
+    private var difficulty: Int = 1
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_maps)
+        supportActionBar!!.setDisplayHomeAsUpEnabled(true)
+
+        difficulty = intent.extras.getInt("difficulty")
+        songToPlayIndexString = intent.extras.getString("songToPlay")
+        songsSkipped = intent.extras.getParcelableArrayList("songsSkipped")
+        distanceWalked = intent.extras.getInt("distanceWalked").toFloat()
+        walkingTarget = intent.extras.getInt("walkingTarget")
+        if (walkingTarget == 0) {
+            walkingTarget = null
+        } else {
+            walkingTargetProgress = intent.extras.getInt("walkingTargetProgress").toFloat()
+        }
+        targetMet = intent.extras.getBoolean("targetMet")
+
+        toast("Playing song: ${songs[songToPlayIndexString.toInt()-1].title}")
+
+        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        val mapFragment = supportFragmentManager
+                .findFragmentById(R.id.map) as SupportMapFragment
+
+        // Get notified when the map is ready to be used.
+        // Long ́running activities are performed asynchronously in order to keep the user interface responsive
+        mapFragment.getMapAsync(this)
+        // Create an instance of GoogleAPIClient.
+        mGoogleApiClient = GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build()
+
+        lastLoc = Location("")
+        lastLoc.latitude = 0.0
+        lastLoc.longitude = 0.0
+    }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_activity_maps, menu)
@@ -78,7 +116,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             onBackPressed()
             true
         }
-        item.itemId == R.id.action_lyrics_list -> {
+        item.itemId == R.id.action_words_collected -> {
             val intent = Intent(this, WordsCollectedActivity::class.java)
             intent.putExtra("songToPlay", songToPlayIndexString)
             intent.putExtra("guessCount", guessCount)
@@ -168,46 +206,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         else -> false
     }
 
-    private var difficulty: Int = 1
+    override fun onStart() {
+        super.onStart()
+        mGoogleApiClient.connect()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_maps)
-        supportActionBar!!.setDisplayHomeAsUpEnabled(true)
-
-        difficulty = intent.extras.getInt("difficulty")
-        songToPlayIndexString = intent.extras.getString("songToPlay")
-        songsSkipped = intent.extras.getParcelableArrayList("songsSkipped")
-        songsUnlocked = intent.extras.getParcelableArrayList("songsUnlocked")
-        distanceWalked = intent.extras.getInt("distanceWalked").toFloat()
-        walkingTarget = intent.extras.getInt("walkingTarget")
-        if (walkingTarget == 0) {
-            walkingTarget = null
-        } else {
-            walkingTargetProgress = intent.extras.getInt("walkingTargetProgress").toFloat()
+        // Restore preferences
+        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
+        wordsCollected.addAll(settings.getStringSet("storedWordsCollected", setOf()))
+        if (songsUnlocked.contains(songs[songToPlayIndexString.toInt()-1])) {
+            unlocked = true
+            onBackPressed()
         }
-        targetMet = intent.extras.getBoolean("targetMet")
-
-        toast("Playing song: ${songs[songToPlayIndexString.toInt()-1].title}")
-
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        val mapFragment = supportFragmentManager
-                .findFragmentById(R.id.map) as SupportMapFragment
-
-        // Get notified when the map is ready to be used.
-        // Long ́running activities are performed asynchronously in order to keep the user interface responsive
-        mapFragment.getMapAsync(this)
-        // Create an instance of GoogleAPIClient.
-        mGoogleApiClient = GoogleApiClient.Builder(this)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build()
-
-        lastLoc = Location("")
-        lastLoc.latitude = 0.0
-        lastLoc.longitude = 0.0
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -252,9 +261,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             var line: String? = null
 
             while({ line = br.readLine(); line}() != null) {
-                if (line != null) {
-                    lines.add(line!!)
-                }
+                lines.add(line!!)
             }
 
             activityUiThread {
@@ -295,81 +302,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
     override fun onMarkerClick(marker: Marker): Boolean = false
 
-    override fun onStart() {
-        super.onStart()
-        mGoogleApiClient.connect()
-
-        // Restore preferences
-        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
-        wordsCollected.addAll(settings.getStringSet("storedWordsCollected", setOf()))
-    }
-
-    override fun onPause() {
-        super.onPause()
-
-        // All objects are from android.context.Context
-        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
-
-        // We need an Editor object to make preference changes.
-        val editor = settings.edit()
-
-        editor.putInt("storedDistanceWalked", distanceWalked.toInt())
-        editor.putInt("storedWalkingTargetProgress", walkingTargetProgress.toInt())
-        editor.putStringSet("storedWordsCollected", wordsCollected.toSet())
-        val titlesSkipped = songsSkipped
-                .map { it.title }
-                .toSet()
-        editor.putStringSet("storedSongsSkipped", titlesSkipped)
-
-        editor.apply()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        if (mGoogleApiClient.isConnected) {
-            mGoogleApiClient.disconnect()
-        }
-    }
-
-    private fun createLocationRequest() {
-    // Set the parameters for the location request
-        val mLocationRequest = LocationRequest()
-        mLocationRequest.interval = 5000
-        mLocationRequest.fastestInterval = 1000
-        mLocationRequest.priority =
-            LocationRequest.PRIORITY_HIGH_ACCURACY
-
-        // Can we access the user’s current location?
-        val permissionCheck = checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this)
-        }
-    }
-
-    override fun onConnected(connectionHint : Bundle?) {
-        try {
-            createLocationRequest()
-        } catch (ise : IllegalStateException) {
-            println("[$tag] [onConnected] IllegalStateException thrown")
-        }
-        // Can we access the user’s current location?
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            val api = LocationServices.FusedLocationApi
-            mLastLocation = api.getLastLocation(mGoogleApiClient)
-            // Caution: getLastLocation can return null
-            if (mLastLocation == null) {
-                println("[$tag] Warning: mLastLocation is null")
-            }
-        } else {
-            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
-        }
-    }
-
     override fun onLocationChanged(current : Location?) {
         if (current == null) {
             println("[onLocationChanged] Location unknown")
         } else {
-           // println("[onLocationChanged] Lat/long now (${current.latitude}, ${current.longitude})" )
+            // println("[onLocationChanged] Lat/long now (${current.latitude}, ${current.longitude})" )
         }
 
         if (lastLoc.latitude != 0.0 && current != null) {
@@ -468,6 +405,40 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         return Pair(currentResult, currentMin.toInt())
     }
 
+    override fun onConnected(connectionHint : Bundle?) {
+        try {
+            createLocationRequest()
+        } catch (ise : IllegalStateException) {
+            println("[$tag] [onConnected] IllegalStateException thrown")
+        }
+        // Can we access the user’s current location?
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            val api = LocationServices.FusedLocationApi
+            mLastLocation = api.getLastLocation(mGoogleApiClient)
+            // Caution: getLastLocation can return null
+            if (mLastLocation == null) {
+                println("[$tag] Warning: mLastLocation is null")
+            }
+        } else {
+            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
+        }
+    }
+
+    private fun createLocationRequest() {
+        // Set the parameters for the location request
+        val mLocationRequest = LocationRequest()
+        mLocationRequest.interval = 5000
+        mLocationRequest.fastestInterval = 1000
+        mLocationRequest.priority =
+                LocationRequest.PRIORITY_HIGH_ACCURACY
+
+        // Can we access the user’s current location?
+        val permissionCheck = checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this)
+        }
+    }
+
     override fun onConnectionSuspended(flag : Int) {
         println(" >>>> onConnectionSuspended")
     }
@@ -477,6 +448,37 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         // could not be established. Display an error message, or handle
         // the failure silently
         println(" >>>> onConnectionFailed")
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        // All objects are from android.context.Context
+        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
+
+        // We need an Editor object to make preference changes.
+        val editor = settings.edit()
+
+        editor.putInt("storedDistanceWalked", distanceWalked.toInt())
+        editor.putInt("storedWalkingTargetProgress", walkingTargetProgress.toInt())
+        editor.putStringSet("storedWordsCollected", wordsCollected.toSet())
+        val titlesSkipped = songsSkipped
+                .map { it.title }
+                .toSet()
+        editor.putStringSet("storedSongsSkipped", titlesSkipped)
+        val titlesUnlocked = songsUnlocked
+                .map { it.title }
+                .toSet()
+        editor.putStringSet("storedSongsUnlocked", titlesUnlocked)
+        editor.putString("storedSongToPlayIndexString", songToPlayIndexString)
+        editor.apply()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (mGoogleApiClient.isConnected) {
+            mGoogleApiClient.disconnect()
+        }
     }
 
     override fun onBackPressed() {
@@ -504,7 +506,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 if (guessCount >= 3) {
                     invalidateOptionsMenu()
                 }
+                unlocked = data.getBooleanExtra("returnUnlocked", false)
+                if (unlocked) {
+                    onBackPressed()
+                }
             }
+        } else if (requestCode == 2) {
+            println(">>>>> Return from share..")
+            onBackPressed()
         }
     }
 
@@ -520,17 +529,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 songsUnlocked.add(songs[songToPlayIndexString.toInt()-1])
                 wordsCollected.clear()
                 wordsWithPos.clear()
+                unlocked = true
                 val builderCorrect = AlertDialog.Builder(this)
                 builderCorrect.setTitle("Nice one, you guessed correctly!")
                 builderCorrect.setMessage("View the full lyrics, share with your friends or move to the next song?")
                 builderCorrect.setPositiveButton("Next Song") { _, _ ->
-                    unlocked = true
                     onBackPressed()
                 }
                 builderCorrect.setNegativeButton("View Lyrics") { _, _ ->
                     val intent = Intent(this, SongDetailActivity::class.java)
                     intent.putExtra("song", songs[songToPlayIndexString.toInt()-1])
-                    startActivity(intent)
+                    startActivityForResult(intent, 2)
                 }
                 builderCorrect.setNeutralButton("Share") { _, _ ->
                     val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
@@ -539,6 +548,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked ${songs[songToPlayIndexString.toInt()-1].title} by ${songs[songToPlayIndexString.toInt()-1].artist} on Songle!")
                     startActivity(Intent.createChooser(sharingIntent, "Share via"))
                 }
+                builderCorrect.setCancelable(false)
                 builderCorrect.show()
             } else {
                 guessCount++
@@ -559,5 +569,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
         builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
         builder.show()
+        if (unlocked) {
+            onBackPressed()
+        }
     }
 }

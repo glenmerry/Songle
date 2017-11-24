@@ -32,7 +32,8 @@ import java.util.*
 import kotlin.collections.ArrayList
 
 var favourites = arrayListOf<Song>()
-var songs = listOf<Song>()
+var songs = arrayListOf<Song>()
+var songsUnlocked = mutableSetOf<Song>()
 val prefsFile = "MyPrefsFile" // for storing preferences
 
 class MainActivity : AppCompatActivity() {
@@ -54,73 +55,8 @@ class MainActivity : AppCompatActivity() {
     private var titlesFavLoad = mutableSetOf<String>()
     private var titlesSkippedLoad = mutableSetOf<String>()
     private var songsSkipped = arrayListOf<Song>()
-    private val songsUnlocked: ArrayList<Song> = ArrayList()
     private var songToPlayIndexString: String? = null
     private var resetTriggered = false
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_activity_main, menu)
-        if (distanceWakedHidden) {
-            menu.getItem(0).isChecked = false
-        }
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.action_reset -> {
-            alert("All progress will be lost!", "Are you sure you want to reset the game?") {
-                positiveButton("Yes, I'm sure") {
-                    this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
-                    resetTriggered = true
-                    val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    startActivity(intent)
-                }
-                negativeButton("No, abort") {}
-            }.show()
-            true
-        }
-        R.id.action_collect_distance_pref -> {
-            item.isChecked = !item.isChecked
-            distanceWakedHidden = !distanceWakedHidden
-            if (item.isChecked) {
-                buttonSetTarget.visibility = View.VISIBLE
-                progressBarWalkingTarget.visibility = View.VISIBLE
-                textViewProgressWalkingTarget.visibility = View.VISIBLE
-            } else {
-                buttonSetTarget.visibility = View.GONE
-                progressBarWalkingTarget.visibility = View.GONE
-                textViewProgressWalkingTarget.visibility = View.GONE
-            }
-            true
-        }
-        R.id.action_collect_distance_reset -> {
-            alert("Distance walked data and target will be lost!", "Are you sure you want to reset distance walked?") {
-                positiveButton("Yes, I'm sure") {
-                    distanceWalked = 0
-                    distanceWalkedWithUnit = "0m"
-                    walkingTarget = null
-                    walkingTargetWithUnit = ""
-                    progressBarWalkingTarget.progress = 0
-                    textViewProgressWalkingTarget.text = ""
-                }
-                negativeButton("No, abort") {}
-            }.show()
-            true
-        }
-        R.id.action_help -> {
-            /*val intent = Intent(this, HelpActivity::class.java)
-            startActivity(intent)
-            true*/
-            songsUnlocked.add(songs[randomiser(0, songs.size)])
-            println("songs unlocked size  now ${songsUnlocked.size}")
-            progressBar.progress = songsUnlocked.size
-            textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
-            downloadSongs()
-            true
-        }
-        else -> super.onOptionsItemSelected(item)
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -221,7 +157,6 @@ class MainActivity : AppCompatActivity() {
         buttonSongsUnlocked.setOnClickListener {
             val intent = Intent(this, SongsUnlockedActivity::class.java)
             intent.putParcelableArrayListExtra("songs", ArrayList(songs))
-            intent.putParcelableArrayListExtra("songsUnlocked", songsUnlocked)
             startActivity(intent)
         }
 
@@ -299,58 +234,108 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun downloadSongs() {
-        doAsync {
-            try {
-                loadXmlFromNetwork("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
-            } catch (e: IOException) {
-                println("Unable to load content. Check your network connection")
-            } catch (e: XmlPullParserException) {
-                println("Error parsing XML")
-            }
-            activityUiThread {
-                if (songs.isNotEmpty()) {
-                    for (song in songs) {
-                        if (titlesUnlockedLoad.contains(song.title)) {
-                            songsUnlocked.add(song)
-                        }
-                        if (titlesFavLoad.contains(song.title)) {
-                            favourites.add(song)
-                        }
-                        if (titlesSkippedLoad.contains(song.title)) {
-                            songsSkipped.add(song)
-                        }
-                        println(song)
-                    }
-                    progressBar.max = songs.size
-                    progressBar.progress = songsUnlocked.size
-                    textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
-
-                    if (songToPlayIndexString == null) {
-                        val songToPlayIndex = getSongIndex()
-
-                        songToPlayIndexString = if (songToPlayIndex < 10) {
-                            "0$songToPlayIndex"
-                        } else {
-                            songToPlayIndex.toString()
-                        }
-                    }
+    private fun startMaps() {
+        if (songs.isEmpty()) {
+            alert("Songle song list not yet downloaded", "Please wait") {
+                positiveButton("Ok") { }
+            }.show()
+        }
+        val intent = Intent(this, MapsActivity::class.java)
+        if (songToPlayIndexString == null || songsUnlocked.contains(songs[songToPlayIndexString!!.toInt()-1])) {
+            val i = getSongIndex()
+            if (i != null) {
+                songToPlayIndexString = if ((i + 1) < 10) {
+                    "0${i + 1}"
+                } else {
+                    (i + 1).toString()
                 }
+                println("song to play index is >>>> ${i + 1}")
+                startMaps()
+            } else {
+                alert("Reset the game to play again?", "Nice one! You unlocked all of Songle's songs!") {
+                    positiveButton("Reset Game") {
+                        this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
+                        resetTriggered = true
+                        val intentReset = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
+                        intentReset.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        startActivity(intentReset)
+                    }
+                    negativeButton("No Thanks") { }
+                }.show()
+                return
             }
         }
-    }
-
-    private fun startMaps() {
-        val intent = Intent(this, MapsActivity::class.java)
         intent.putExtra("difficulty", selectedDifficulty!!)
         intent.putExtra("songToPlay", songToPlayIndexString)
         intent.putExtra("songsSkipped", songsSkipped)
-        intent.putExtra("songsUnlocked", songsUnlocked)
         intent.putExtra("distanceWalked", distanceWalked)
         intent.putExtra("walkingTarget", walkingTarget)
         intent.putExtra("walkingTargetProgress", walkingTargetProgress)
         intent.putExtra("targetMet", targetMet)
         startActivityForResult(intent, 1)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_activity_main, menu)
+        if (distanceWakedHidden) {
+            menu.getItem(0).isChecked = false
+        }
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.action_reset -> {
+            alert("All progress will be lost!", "Are you sure you want to reset the game?") {
+                positiveButton("Yes, I'm sure") {
+                    this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
+                    resetTriggered = true
+                    val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    startActivity(intent)
+                }
+                negativeButton("No, abort") {}
+            }.show()
+            true
+        }
+        R.id.action_collect_distance_pref -> {
+            item.isChecked = !item.isChecked
+            distanceWakedHidden = !distanceWakedHidden
+            if (item.isChecked) {
+                buttonSetTarget.visibility = View.VISIBLE
+                progressBarWalkingTarget.visibility = View.VISIBLE
+                textViewProgressWalkingTarget.visibility = View.VISIBLE
+            } else {
+                buttonSetTarget.visibility = View.GONE
+                progressBarWalkingTarget.visibility = View.GONE
+                textViewProgressWalkingTarget.visibility = View.GONE
+            }
+            true
+        }
+        R.id.action_collect_distance_reset -> {
+            alert("Distance walked data and target will be lost!", "Are you sure you want to reset distance walked?") {
+                positiveButton("Yes, I'm sure") {
+                    distanceWalked = 0
+                    distanceWalkedWithUnit = "0m"
+                    walkingTarget = null
+                    walkingTargetWithUnit = ""
+                    progressBarWalkingTarget.progress = 0
+                    textViewProgressWalkingTarget.text = ""
+                }
+                negativeButton("No, abort") {}
+            }.show()
+            true
+        }
+        R.id.action_help -> {
+            val intent = Intent(this, HelpActivity::class.java)
+            startActivity(intent)
+            /*songsUnlocked.add(songs[randomiser(0, songs.size)])
+            println("songs unlocked size  now ${songsUnlocked.size}")
+            progressBar.progress = songsUnlocked.size
+            textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
+            downloadSongs()*/
+            true
+        }
+        else -> super.onOptionsItemSelected(item)
     }
 
     override fun onStart() {
@@ -365,12 +350,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         titlesSkippedLoad = settings.getStringSet("storedSongsSkipped", setOf(""))
+        titlesUnlockedLoad = settings.getStringSet("storedSongsUnlocked", setOf(""))
 
         if (songs.isNotEmpty()) {
             songs
                     .filter { titlesSkippedLoad.contains(it.title) }
-                    .forEach { songsSkipped.add(it) }
+                    .forEach { if (!songsSkipped.contains(it)) {
+                        songsSkipped.add(it)
+                    }}
+            songs
+                    .filter { titlesUnlockedLoad.contains(it.title) }
+                    .forEach { if (!songsUnlocked.contains(it)) {
+                        songsUnlocked.add(it)
+                    }}
         }
+
+        progressBar.progress = songsUnlocked.size
+        textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
     }
 
     override fun onPause() {
@@ -470,14 +466,27 @@ class MainActivity : AppCompatActivity() {
                     if (songToPlayIndexString != null && !songsSkipped.contains(songs[songToPlayIndexString!!.toInt()-1])) {
                         songsSkipped.add(songs[songToPlayIndexString!!.toInt()-1])
                     }
-                    val songToPlayIndex = getSongIndex() + 1
-                    songToPlayIndexString = if (songToPlayIndex < 10) {
-                        "0$songToPlayIndex"
+                    val i = getSongIndex()
+                    if (i != null) {
+                        songToPlayIndexString = if ((i+1) < 10) {
+                            "0${i+1}"
+                        } else {
+                            (i+1).toString()
+                        }
+                        println("song to play index is >>>> ${i+1}")
+                        startMaps()
                     } else {
-                        songToPlayIndex.toString()
+                        alert("Reset the game to play again?", "Nice one! You unlocked all of Songle's songs!") {
+                            positiveButton("Reset Game") {
+                                this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
+                                resetTriggered = true
+                                val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                startActivity(intent)
+                            }
+                            negativeButton("No Thanks") { }
+                        }.show()
                     }
-                    println("song to play index is >>>> $songToPlayIndex")
-                    startMaps()
                 }
 
                 val unlocked = data.getBooleanExtra("returnUnlocked", false)
@@ -487,41 +496,81 @@ class MainActivity : AppCompatActivity() {
                     }
                     progressBar.progress++
                     textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
-                    val songToPlayIndex = getSongIndex() + 1
-                    songToPlayIndexString = if (songToPlayIndex < 10) {
-                        "0$songToPlayIndex"
+                    val i = getSongIndex()
+                    if (i != null) {
+                        songToPlayIndexString = if (i+1 < 10) {
+                            "0${i+1}"
+                        } else {
+                            (i+1).toString()
+                        }
+                        println("song to play index is >>>> ${i+1}")
+                        startMaps()
                     } else {
-                        songToPlayIndex.toString()
+                        alert("Reset the game to play again?", "Nice one! You unlocked all of Songle's songs!") {
+                            positiveButton("Reset Game") {
+                                this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
+                                resetTriggered = true
+                                val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
+                                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                startActivity(intent)
+                            }
+                            negativeButton("No Thanks") { }
+                        }.show()
                     }
-                    println("song to play index is >>>> $songToPlayIndex")
-                    startMaps()
                 }
             }
         }
     }
 
-    private inner class NetworkReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val connMgr = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val networkInfo = connMgr.activeNetworkInfo
+    private fun downloadSongs() {
+        doAsync {
+            try {
+                loadXmlFromNetwork("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/songs.xml")
+            } catch (e: IOException) {
+                println("Unable to load content. Check your network connection")
+            } catch (e: XmlPullParserException) {
+                println("Error parsing XML")
+            }
+            activityUiThread {
+                if (songs.isNotEmpty()) {
+                    for (song in songs) {
+                        if (titlesUnlockedLoad.contains(song.title)) {
+                            songsUnlocked.add(song)
+                        }
+                        if (titlesFavLoad.contains(song.title)) {
+                            favourites.add(song)
+                        }
+                        if (titlesSkippedLoad.contains(song.title)) {
+                            songsSkipped.add(song)
+                        }
+                        println(song)
+                    }
+                    progressBar.max = songs.size
+                    progressBar.progress = songsUnlocked.size
+                    textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
 
-            if (networkInfo != null) {
-                // Network is available
-                if (connectionLost) {
-                    val snackbar : Snackbar = Snackbar.make(findViewById(android.R.id.content),
-                            "Connected", Snackbar.LENGTH_SHORT)
-                    snackbar.show()
-                    connectionLost = false
-                    if (songs.isEmpty()) {
-                        downloadSongs()
+                    if (songToPlayIndexString == null) {
+                        val songToPlayIndex = getSongIndex()
+                        if (songToPlayIndex != null) {
+                            songToPlayIndexString = if (songToPlayIndex+1 < 10) {
+                                "0${songToPlayIndex+1}"
+                            } else {
+                                (songToPlayIndex+1).toString()
+                            }
+                        } else {
+                            alert("Reset the game to play again?", "Nice one! You unlocked all of Songle's songs!") {
+                                positiveButton("Reset Game") {
+                                    this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
+                                    resetTriggered = true
+                                    val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    startActivity(intent)
+                                }
+                                negativeButton("No Thanks") { }
+                            }.show()
+                        }
                     }
                 }
-            } else {
-                // No network connection
-                val snackbar : Snackbar = Snackbar.make(findViewById(android.R.id.content),
-                        "No internet connection available", Snackbar.LENGTH_INDEFINITE)
-                snackbar.show()
-                connectionLost = true
             }
         }
     }
@@ -552,43 +601,98 @@ class MainActivity : AppCompatActivity() {
         return conn.inputStream
     }
 
-    fun randomiser(from: Int, to: Int): Int {
-        val random = Random()
-        return random.nextInt(to - from) + from
-    }
+    private inner class NetworkReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val connMgr = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val networkInfo = connMgr.activeNetworkInfo
 
-    fun getSongIndex(): Int {
-
-        println("songs unlocked: $songsUnlocked")
-        println("songs skipped: $songsSkipped")
-
-        val lockedIndices = arrayListOf<Int>()
-        val skippedIndices = arrayListOf<Int>()
-
-        songs.indices.filterNotTo(lockedIndices) { songsUnlocked.contains(songs[it]) }
-        songs.indices.filterTo(skippedIndices) { songsSkipped.contains(songs[it]) }
-
-        return when {
-            songsSkipped.size == 0 -> {
-                // if no songs skipped then randomise locked songs
-                println("getting new song index >>>> no songs skipped, randomise locked songs")
-                println("locked indices: $lockedIndices")
-                lockedIndices[randomiser(0, lockedIndices.size-1)]
-            }
-            lockedIndices == skippedIndices -> {
-                // if all locked songs skipped then randomise skipped songs
-                println("getting new song index >>>> all locked songs skipped, randomise skipped songs")
-                skippedIndices[randomiser(0, skippedIndices.size-1)]
-            }
-            else -> {
-                // if only some locked songs skipped then randomise unskipped locked songs
-                println("getting new song index >>>> some locked songs skipped, randomise unskipped locked songs")
-                println("locked indices >>>>>> $lockedIndices")
-                println("skipped indices >>>>>>> $skippedIndices")
-                lockedIndices.removeAll(skippedIndices)
-                println(">>> locked songs after removing skips: $lockedIndices")
-                lockedIndices[randomiser(0, lockedIndices.size-1)]
+            if (networkInfo != null) {
+                // Network is available
+                if (connectionLost) {
+                    val snackbar : Snackbar = Snackbar.make(findViewById(android.R.id.content),
+                            "Connected", Snackbar.LENGTH_SHORT)
+                    snackbar.show()
+                    connectionLost = false
+                    if (songs.isEmpty()) {
+                        downloadSongs()
+                    }
+                }
+            } else {
+                // No network connection
+                val snackbar : Snackbar = Snackbar.make(findViewById(android.R.id.content),
+                        "No internet connection available", Snackbar.LENGTH_INDEFINITE)
+                snackbar.show()
+                connectionLost = true
             }
         }
+    }
+
+    private fun getSongIndex(): Int? {
+
+        return when {
+            songs.size - songsUnlocked.size == 1 -> {
+                val songsCopy = ArrayList<Song>(songs)
+                songsCopy.removeAll(songsUnlocked)
+                println(songsCopy[0].number.toInt())
+                songsCopy[0].number.toInt() -1
+            }
+            songsUnlocked.size == songs.size -> {
+                null
+            }
+            else -> {
+                println("songs unlocked: $songsUnlocked")
+                println("songs skipped: $songsSkipped")
+
+                val lockedIndices = arrayListOf<Int>()
+                val skippedIndices = arrayListOf<Int>()
+
+                songs.indices.filterNotTo(lockedIndices) { songsUnlocked.contains(songs[it]) }
+                songs.indices.filterTo(skippedIndices) { songsSkipped.contains(songs[it]) }
+
+                return when {
+                    songsSkipped.size == 0 -> {
+                        // if no songs skipped then randomise locked songs
+                        println("getting new song index >>>> no songs skipped, randomise locked songs")
+                        println("locked indices: $lockedIndices")
+                        lockedIndices[randomiser(0, lockedIndices.size - 1)]
+                    }
+                    /*lockedIndices == skippedIndices -> {
+                        // if all locked songs skipped then randomise skipped songs
+                        println("getting new song index >>>> all locked songs skipped, randomise skipped songs")
+                        if (skippedIndices.size == 1) {
+                            skippedIndices[0]
+                        } else {
+                            skippedIndices[randomiser(0, skippedIndices.size - 1)]
+                        }
+                    }*/
+                    /*else -> {
+                        // if only some locked songs skipped then randomise unskipped locked songs
+                        println("getting new song index >>>> some locked songs skipped, randomise unskipped locked songs")
+                        println("locked indices >>>>>> $lockedIndices")
+                        println("skipped indices >>>>>>> $skippedIndices")
+                        lockedIndices.removeAll(skippedIndices)
+                        println(">>> locked songs after removing skips: $lockedIndices")
+                        if (lockedIndices.size == 1) {
+                            lockedIndices[0]
+                        } else {
+                            lockedIndices[randomiser(0, lockedIndices.size - 1)]
+                        }
+                    }*/
+                    else -> {
+                        lockedIndices.removeAll(skippedIndices)
+                        when {
+                            lockedIndices.size == 0 -> skippedIndices[randomiser(0, skippedIndices.size - 1)]
+                            lockedIndices.size == 1 -> lockedIndices[0]
+                            else -> lockedIndices[randomiser(0, lockedIndices.size - 1)]
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun randomiser(from: Int, to: Int): Int {
+        val random = Random()
+        return random.nextInt(to - from) + from
     }
 }

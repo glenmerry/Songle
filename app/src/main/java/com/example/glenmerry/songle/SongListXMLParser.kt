@@ -5,14 +5,14 @@ import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 import java.io.IOException
 import java.io.InputStream
-import java.util.ArrayList
+import java.util.*
 
 class SongListXMLParser {
     // We don't use namespaces
     private val ns: String? = null
 
     @Throws(XmlPullParserException::class, IOException::class)
-    fun parse(input: InputStream): List<Song> {
+    fun parse(input: InputStream): ArrayList<Song> {
         input.use {
             val parser = Xml.newPullParser()
             parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
@@ -23,7 +23,7 @@ class SongListXMLParser {
     }
 
     @Throws(XmlPullParserException::class, IOException::class)
-    private fun readFeed(parser: XmlPullParser): List<Song> {
+    private fun readFeed(parser: XmlPullParser): ArrayList<Song> {
         val entries = ArrayList<Song>()
         parser.require(XmlPullParser.START_TAG, ns, "Songs")
         while (parser.next() != XmlPullParser.END_TAG) {
