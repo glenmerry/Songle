@@ -83,7 +83,7 @@ class WordsCollectedActivity : AppCompatActivity() {
                     val wordAddStartIndex = wordStartIndices[word.key.substringAfter(':').toInt()]
                     var wordAddEndIndex: Int = -1
 
-                    for (i in wordAddStartIndex!! until oldLine.length-1) {
+                    for (i in wordAddStartIndex!!+1 until oldLine.length-1) {
                         if (oldLine[i] == ' ') {
                             println("space at index $i")
                             wordAddEndIndex = i-1
@@ -99,13 +99,15 @@ class WordsCollectedActivity : AppCompatActivity() {
                         newLine.append(oldLine[i])
                     }
 
-                    newLine.append("${word.value}")
+                    newLine.append(" ${word.value}")
 
                     if (wordAddEndIndex != -1) {
                         for (i in wordAddEndIndex+1 until oldLine.length) {
                             newLine.append(oldLine[i])
                         }
                     }
+
+                    println("New line >>>>> $newLine")
 
 
                     blockedOutLines[word.key.substringBefore(':').toInt()-1] = newLine.toString()
@@ -152,6 +154,7 @@ class WordsCollectedActivity : AppCompatActivity() {
         editor.putStringSet("storedSongsUnlocked", titlesUnlocked)
         editor.putString("storedSongToPlayIndexString", songToPlayIndexString)
         editor.putStringSet("storedWordsCollected", wordsCollected.toSet())
+        editor.putInt("storedGuessCount", guessCount)
         editor.apply()
     }
 
@@ -220,6 +223,7 @@ class WordsCollectedActivity : AppCompatActivity() {
                 builderCorrect.setMessage("View the full lyrics, share with your friends or move to the next song?")
                 builderCorrect.setPositiveButton("Next Song") { _, _ ->
                     unlocked = true
+                    guessCount = 0
                     onBackPressed()
                 }
                 builderCorrect.setNegativeButton("View Lyrics") { _, _ ->

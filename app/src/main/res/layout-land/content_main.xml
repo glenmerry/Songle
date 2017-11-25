@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    tools:context="com.example.glenmerry.songle.MainActivity"
+    tools:layout_editor_absoluteX="0dp"
+    tools:layout_editor_absoluteY="81dp"
+    tools:showIn="@layout/activity_main">
+
+    <android.support.constraint.Guideline
+        android:id="@+id/guideline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_begin="-181dp" />
+
+    <Button
+        android:id="@+id/buttonSongsUnlocked"
+        android:layout_width="267dp"
+        android:layout_height="50dp"
+        android:layout_marginBottom="16dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:background="#5e35b1"
+        android:text="@string/buttonSongsUnlocked"
+        android:textColor="#ffff"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.692"
+        app:layout_constraintStart_toEndOf="@+id/buttonSetTarget" />
+
+    <Button
+        android:id="@+id/buttonSelectDifficulty"
+        android:layout_width="265dp"
+        android:layout_height="50dp"
+        android:layout_marginBottom="20dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:background="#616161"
+        android:text="@string/buttonSelectDifficulty"
+        android:textColor="#ffff"
+        app:layout_constraintBottom_toTopOf="@+id/progressBarWalkingTarget"
+        app:layout_constraintEnd_toStartOf="@+id/buttonPlay"
+        app:layout_constraintHorizontal_bias="0.266"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/buttonPlay"
+        style="@style/Widget.AppCompat.Button.Colored"
+        android:layout_width="266dp"
+        android:layout_height="109dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginTop="8dp"
+        android:text="@string/buttonPlay"
+        app:layout_constraintBottom_toBottomOf="@+id/textViewProgress"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.083" />
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="265dp"
+        android:layout_height="28dp"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:minHeight="60dp"
+        android:minWidth="220dp"
+        android:theme="@style/AppTheme.PurpleAccent"
+        app:layout_constraintBottom_toTopOf="@+id/textViewProgress"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.733"
+        app:layout_constraintStart_toEndOf="@+id/progressBarWalkingTarget"
+        app:layout_constraintTop_toBottomOf="@+id/buttonPlay" />
+
+    <ProgressBar
+        android:id="@+id/progressBarWalkingTarget"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="265dp"
+        android:layout_height="28dp"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="16dp"
+        android:minHeight="60dp"
+        android:minWidth="220dp"
+        android:theme="@style/AppTheme.OrangeAccent"
+        app:layout_constraintBottom_toTopOf="@+id/textViewProgressWalkingTarget"
+        app:layout_constraintHorizontal_bias="0.409"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/textViewProgress"
+        android:layout_width="265dp"
+        android:layout_height="50dp"
+        android:layout_alignBottom="@+id/progressBar"
+        android:layout_centerHorizontal="true"
+        android:layout_marginEnd="16dp"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#5e35b1"
+        android:textStyle="bold"
+        android:textAlignment="center"
+        app:layout_constraintBottom_toTopOf="@+id/buttonSongsUnlocked"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/textViewProgressWalkingTarget"
+        android:layout_width="265dp"
+        android:layout_height="79dp"
+        android:layout_alignBottom="@+id/progressBar"
+        android:layout_centerHorizontal="true"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:gravity="center"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textColor="#f57f17"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/buttonSetTarget"
+        app:layout_constraintEnd_toStartOf="@+id/textViewProgress"
+        app:layout_constraintHorizontal_bias="0.235"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/textViewShowDiff"
+        android:layout_width="265dp"
+        android:layout_height="26dp"
+        android:layout_marginBottom="20dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/buttonSelectDifficulty"
+        app:layout_constraintEnd_toStartOf="@+id/buttonPlay"
+        app:layout_constraintHorizontal_bias="0.266"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0" />
+
+    <Button
+        android:id="@+id/buttonSetTarget"
+        android:layout_width="267dp"
+        android:layout_height="50dp"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="16dp"
+        android:background="#f57f17"
+        android:text="@string/buttonSetTarget"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</android.support.constraint.ConstraintLayout>

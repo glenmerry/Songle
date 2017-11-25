@@ -2,6 +2,9 @@ package com.example.glenmerry.songle
 
 import android.Manifest
 import android.app.Activity
+import android.app.ProgressDialog
+import android.app.ProgressDialog.STYLE_HORIZONTAL
+import android.app.ProgressDialog.STYLE_SPINNER
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -46,7 +49,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private lateinit var mMap: GoogleMap
     private lateinit var mGoogleApiClient: GoogleApiClient
     private val PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1
-    var mLocationPermissionGranted = false
+    //var mLocationPermissionGranted = false
     private var mLastLocation: Location? = null
     private val tag = "MapsActivity"
     private var songToPlayIndexString = "01"
@@ -133,6 +136,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             alert("Are you sure you want to skip this song?") {
                 positiveButton("Yes please") {
                     songsSkipped.add(songs[songToPlayIndexString.toInt()-1])
+                    wordsCollected.clear()
+                    wordsWithPos.clear()
+                    guessCount = 0
                     skip = true
                     onBackPressed()
                     toast("Skipped song ${songs[songToPlayIndexString.toInt()-1].title}")
@@ -142,11 +148,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             true
         }
         item.itemId == R.id.action_hint -> {
+
             alert("Want a hint?") {
+
                 positiveButton("Yes please!") {
                     var hintWord: String
 
-                    val maxInterest = when (difficulty) {
+                    var maxInterest = when (difficulty) {
                         1 -> "unclassified"
                         2 -> "notboring"
                         3 -> "interesting"
@@ -158,13 +166,48 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     var hintMarker: Marker = markers[0]
                     var hintTag: String? = null
 
-
-                    for (marker in markers) {
-                        if (marker.title == maxInterest && !wordsCollected.contains(marker.tag)) {
-                            hintMarker = marker
-                            hintTag = marker.tag as String
-                            break
+                    fun getHintWord() {
+                        for (marker in markers) {
+                            if (marker.title == maxInterest && !wordsCollected.contains(marker.tag)) {
+                                hintMarker = marker
+                                hintTag = marker.tag as String
+                                break
+                            }
                         }
+                    }
+
+                    getHintWord()
+
+                    if (hintTag == null) {
+                        maxInterest = when (difficulty) {
+                            2 -> "boring"
+                            3 -> "notboring"
+                            4 -> "notboring"
+                            5 -> "interesting"
+                            else -> "noChange"
+                        }
+                    }
+
+                    if (maxInterest != "noChange") {
+                        getHintWord()
+                    }
+
+                    if (hintTag == null) {
+                        maxInterest = when (difficulty) {
+                            3 -> "boring"
+                            4 -> "boring"
+                            5 -> "notboring"
+                            else -> "noChange"
+                        }
+                    }
+
+                    if (maxInterest != "noChange") {
+                        getHintWord()
+                    }
+
+                    if (hintTag == null && difficulty == 5) {
+                        maxInterest = "boring"
+                        getHintWord()
                     }
 
                     println(hintTag)
@@ -217,6 +260,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             unlocked = true
             onBackPressed()
         }
+        guessCount = settings.getInt("storedGuessCount", guessCount)
+        invalidateOptionsMenu()
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -229,6 +274,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             mMap.isMyLocationEnabled = true
         } catch (se: SecurityException) {
             println("Security exception thrown [onMapReady]")
+        }
+
+        val progressDialog = progressDialog(message = "Please wait", title = "Setting up the Songle map…") {
+            setProgressStyle(STYLE_SPINNER)
+            setCancelable(false)
         }
 
         doAsync {
@@ -248,11 +298,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             val urlB = URL("http://maps.google.com/mapfiles/kml/paddle/ylw-blank.png")
             val urlU = URL("http://maps.google.com/mapfiles/kml/paddle/wht-blank.png")
 
-            val bmpVI = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlVI.openConnection().getInputStream()), 80, 80, false)
-            val bmpI = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlI.openConnection().getInputStream()), 80, 80, false)
-            val bmpNB = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlNB.openConnection().getInputStream()), 80, 80, false)
-            val bmpB = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlB.openConnection().getInputStream()), 80, 80, false)
-            val bmpU = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlU.openConnection().getInputStream()), 80, 80, false)
+            val bmpVI = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlVI.openConnection().getInputStream()), 80, 80, true)
+            val bmpI = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlI.openConnection().getInputStream()), 80, 80, true)
+            val bmpNB = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlNB.openConnection().getInputStream()), 80, 80, true)
+            val bmpB = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlB.openConnection().getInputStream()), 80, 80, true)
+            val bmpU = Bitmap.createScaledBitmap(BitmapFactory.decodeStream(urlU.openConnection().getInputStream()), 80, 80, true)
 
             val urlWords = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt")
 
@@ -296,6 +346,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     }
                 }
                 layer.removeLayerFromMap()
+                progressDialog.dismiss()
             }
         }
     }
@@ -471,6 +522,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 .toSet()
         editor.putStringSet("storedSongsUnlocked", titlesUnlocked)
         editor.putString("storedSongToPlayIndexString", songToPlayIndexString)
+        editor.putInt("storedGuessCount", guessCount)
         editor.apply()
     }
 
@@ -525,11 +577,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         input.inputType = InputType.TYPE_CLASS_TEXT
         builder.setView(input)
         builder.setPositiveButton("Make Guess!") { _, _ ->
+
             if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()-1].title.toLowerCase()) {
+
                 songsUnlocked.add(songs[songToPlayIndexString.toInt()-1])
                 wordsCollected.clear()
                 wordsWithPos.clear()
                 unlocked = true
+                guessCount = 0
+
                 val builderCorrect = AlertDialog.Builder(this)
                 builderCorrect.setTitle("Nice one, you guessed correctly!")
                 builderCorrect.setMessage("View the full lyrics, share with your friends or move to the next song?")
@@ -550,11 +606,14 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 }
                 builderCorrect.setCancelable(false)
                 builderCorrect.show()
+
             } else {
+
                 guessCount++
                 if (guessCount == 3) {
                     invalidateOptionsMenu()
                 }
+
                 val builderIncorrect = AlertDialog.Builder(this)
                 builderIncorrect.setTitle("Sorry, that's not quite right")
                 builderIncorrect.setMessage("Guess again?")
@@ -565,7 +624,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     dialog.cancel()
                 }
                 builderIncorrect.show()
+
             }
+
         }
         builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
         builder.show()

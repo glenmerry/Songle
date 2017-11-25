@@ -41,7 +41,6 @@ class SongDetailActivity : AppCompatActivity() {
             val v = inflator.inflate(R.layout.titlebar, null)
             (v.findViewById(R.id.title) as TextView).text = this.title
             supportActionBar!!.customView = v
-
         }
 
         val fab = findViewById(R.id.fav_fab) as FloatingActionButton

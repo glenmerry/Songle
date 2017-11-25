@@ -122,6 +122,7 @@ class MainActivity : AppCompatActivity() {
                 targetMet = false
                 walkingTarget = input.text.toString().toInt()
                 walkingTargetProgress = 0
+                progressBarWalkingTarget.progress = 0
                 walkingTargetProgressWithUnit = "0m"
                 walkingTargetWithUnit = if (walkingTarget!! < 1000) {
                     "${walkingTarget}m"
@@ -230,7 +231,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             walkingTarget = null
             progressBarWalkingTarget.progress = 0
-            textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit total walked while playing Songle!"
+            textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit walked while playing Songle!"
         }
     }
 
@@ -249,16 +250,12 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     (i + 1).toString()
                 }
-                println("song to play index is >>>> ${i + 1}")
+                println("song to play index is >>>> ${i+1}")
                 startMaps()
             } else {
                 alert("Reset the game to play again?", "Nice one! You unlocked all of Songle's songs!") {
                     positiveButton("Reset Game") {
-                        this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
-                        resetTriggered = true
-                        val intentReset = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
-                        intentReset.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        startActivity(intentReset)
+                        resetGame()
                     }
                     negativeButton("No Thanks") { }
                 }.show()
@@ -287,11 +284,7 @@ class MainActivity : AppCompatActivity() {
         R.id.action_reset -> {
             alert("All progress will be lost!", "Are you sure you want to reset the game?") {
                 positiveButton("Yes, I'm sure") {
-                    this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
-                    resetTriggered = true
-                    val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    startActivity(intent)
+                    resetGame()
                 }
                 negativeButton("No, abort") {}
             }.show()
@@ -328,11 +321,6 @@ class MainActivity : AppCompatActivity() {
         R.id.action_help -> {
             val intent = Intent(this, HelpActivity::class.java)
             startActivity(intent)
-            /*songsUnlocked.add(songs[randomiser(0, songs.size)])
-            println("songs unlocked size  now ${songsUnlocked.size}")
-            progressBar.progress = songsUnlocked.size
-            textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
-            downloadSongs()*/
             true
         }
         else -> super.onOptionsItemSelected(item)
@@ -458,7 +446,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 } else {
-                    textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit total walked while playing Songle!"
+                    textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit walked while playing Songle!"
                 }
 
                 val skip = data.getBooleanExtra("returnSkip", false)
@@ -478,11 +466,7 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         alert("Reset the game to play again?", "Nice one! You unlocked all of Songle's songs!") {
                             positiveButton("Reset Game") {
-                                this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
-                                resetTriggered = true
-                                val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
-                                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                startActivity(intent)
+                                resetGame()
                             }
                             negativeButton("No Thanks") { }
                         }.show()
@@ -508,11 +492,7 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         alert("Reset the game to play again?", "Nice one! You unlocked all of Songle's songs!") {
                             positiveButton("Reset Game") {
-                                this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
-                                resetTriggered = true
-                                val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
-                                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                startActivity(intent)
+                                resetGame()
                             }
                             negativeButton("No Thanks") { }
                         }.show()
@@ -558,16 +538,7 @@ class MainActivity : AppCompatActivity() {
                                 (songToPlayIndex+1).toString()
                             }
                         } else {
-                            alert("Reset the game to play again?", "Nice one! You unlocked all of Songle's songs!") {
-                                positiveButton("Reset Game") {
-                                    this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
-                                    resetTriggered = true
-                                    val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
-                                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                    startActivity(intent)
-                                }
-                                negativeButton("No Thanks") { }
-                            }.show()
+                            resetGame()
                         }
                     }
                 }
@@ -656,28 +627,6 @@ class MainActivity : AppCompatActivity() {
                         println("locked indices: $lockedIndices")
                         lockedIndices[randomiser(0, lockedIndices.size - 1)]
                     }
-                    /*lockedIndices == skippedIndices -> {
-                        // if all locked songs skipped then randomise skipped songs
-                        println("getting new song index >>>> all locked songs skipped, randomise skipped songs")
-                        if (skippedIndices.size == 1) {
-                            skippedIndices[0]
-                        } else {
-                            skippedIndices[randomiser(0, skippedIndices.size - 1)]
-                        }
-                    }*/
-                    /*else -> {
-                        // if only some locked songs skipped then randomise unskipped locked songs
-                        println("getting new song index >>>> some locked songs skipped, randomise unskipped locked songs")
-                        println("locked indices >>>>>> $lockedIndices")
-                        println("skipped indices >>>>>>> $skippedIndices")
-                        lockedIndices.removeAll(skippedIndices)
-                        println(">>> locked songs after removing skips: $lockedIndices")
-                        if (lockedIndices.size == 1) {
-                            lockedIndices[0]
-                        } else {
-                            lockedIndices[randomiser(0, lockedIndices.size - 1)]
-                        }
-                    }*/
                     else -> {
                         lockedIndices.removeAll(skippedIndices)
                         when {
@@ -694,5 +643,13 @@ class MainActivity : AppCompatActivity() {
     private fun randomiser(from: Int, to: Int): Int {
         val random = Random()
         return random.nextInt(to - from) + from
+    }
+
+    private fun resetGame() {
+        this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
+        resetTriggered = true
+        val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        startActivity(intent)
     }
 }

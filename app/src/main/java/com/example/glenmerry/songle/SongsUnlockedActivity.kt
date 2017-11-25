@@ -66,20 +66,22 @@ class SongsUnlockedActivity : AppCompatActivity() {
             true
         }
         item.itemId == R.id.action_show_favourites -> {
-            if (supportActionBar!!.title == "Songs Unlocked") {
+            if (supportActionBar!!.title == "Unlocked Songs") {
                 supportActionBar!!.title = "Favourite Songs"
                 item.icon = ContextCompat.getDrawable(this, R.drawable.ic_favorite_white_24px)
                 val artistAndTitlesFav = arrayListOf<String>()
                 val indexInSongsFav = ArrayList<Int>()
                 for (fav in favourites) {
-                    artistAndTitlesFav.add("${fav.artist} - ${fav.title}")
-                    songs
-                            .filter { it.title == fav.title }
-                            .mapTo(indexInSongsFav) { songs.indexOf(it) }
+                    if (!artistAndTitlesFav.contains("${fav.artist} - ${fav.title}")) {
+                        artistAndTitlesFav.add("${fav.artist} - ${fav.title}")
+                        songs
+                                .filter { it.title == fav.title }
+                                .mapTo(indexInSongsFav) { songs.indexOf(it) }
+                    }
                 }
                 showList(artistAndTitlesFav, indexInSongsFav)
             } else {
-                supportActionBar!!.title = "Songs Unlocked"
+                supportActionBar!!.title = "Unlocked Songs"
                 item.icon = ContextCompat.getDrawable(this, R.drawable.ic_favorite_border_white_24px)
                 showList(artistAndTitles, indexInSongs)
             }
@@ -127,10 +129,12 @@ class SongsUnlockedActivity : AppCompatActivity() {
                     val artistAndTitlesFav = arrayListOf<String>()
                     val indexInSongsFav = ArrayList<Int>()
                     for (fav in favourites) {
-                        artistAndTitlesFav.add("${fav.artist} - ${fav.title}")
-                        songs
-                                .filter { it.title == fav.title }
-                                .mapTo(indexInSongsFav) { songs.indexOf(it) }
+                        if (!artistAndTitlesFav.contains("${fav.artist} - ${fav.title}")) {
+                            artistAndTitlesFav.add("${fav.artist} - ${fav.title}")
+                            songs
+                                    .filter { it.title == fav.title }
+                                    .mapTo(indexInSongsFav) { songs.indexOf(it) }
+                        }
                     }
                     showList(artistAndTitlesFav, indexInSongsFav)
                 }

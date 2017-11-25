@@ -50,17 +50,12 @@
             android:theme="@style/AppTheme" />
         <activity
             android:name=".SongsUnlockedActivity"
-            android:label="Songs Unlocked"
+            android:label="Unlocked Songs"
             android:parentActivityName=".MainActivity"
             android:theme="@style/AppTheme" />
         <activity
             android:name=".SongDetailActivity"
             android:parentActivityName=".SongsUnlockedActivity"
-            android:theme="@style/AppTheme" />
-        <activity
-            android:name=".LyricsFoundActivity"
-            android:label="Lyrics Found"
-            android:parentActivityName=".MapsActivity"
             android:theme="@style/AppTheme" />
         <activity
             android:name=".WordsCollectedActivity"
