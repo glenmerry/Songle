@@ -62,10 +62,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Register BroadcastReceiver to track connection changes.
-        val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
-        this.registerReceiver(receiver, filter)
-
         textViewProgress.text = ""
 
         downloadSongs()
@@ -328,6 +324,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+
+        // Register BroadcastReceiver to track connection changes.
+        val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
+        this.registerReceiver(receiver, filter)
+
         // Restore preferences
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
 
@@ -352,13 +353,12 @@ class MainActivity : AppCompatActivity() {
                         songsUnlocked.add(it)
                     }}
         }
-
-        progressBar.progress = songsUnlocked.size
-        textViewProgress.text = "${songsUnlocked.size}/${songs.size} Songs Unlocked"
     }
 
     override fun onPause() {
         super.onPause()
+
+        unregisterReceiver(receiver)
 
         if (resetTriggered) {
             // If game has been reset, return early and do not store shared preferences
@@ -572,7 +572,7 @@ class MainActivity : AppCompatActivity() {
         return conn.inputStream
     }
 
-    private inner class NetworkReceiver : BroadcastReceiver() {
+    private inner class NetworkReceiver: BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val connMgr = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             val networkInfo = connMgr.activeNetworkInfo
@@ -590,7 +590,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } else {
                 // No network connection
-                val snackbar : Snackbar = Snackbar.make(findViewById(android.R.id.content),
+                val snackbar = Snackbar.make(findViewById(android.R.id.content),
                         "No internet connection available", Snackbar.LENGTH_INDEFINITE)
                 snackbar.show()
                 connectionLost = true

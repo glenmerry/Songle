@@ -5,13 +5,16 @@ import android.app.Activity
 import android.app.ProgressDialog
 import android.app.ProgressDialog.STYLE_HORIZONTAL
 import android.app.ProgressDialog.STYLE_SPINNER
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.location.Location
+import android.net.ConnectivityManager
 import android.os.Bundle
 import android.support.design.widget.Snackbar
 import android.support.v4.app.ActivityCompat
@@ -36,6 +39,8 @@ import com.google.android.gms.maps.model.*
 import com.google.maps.android.data.kml.KmlContainer
 import com.google.maps.android.data.kml.KmlLayer
 import com.google.maps.android.data.kml.KmlPoint
+import kotlinx.android.synthetic.main.activity_maps.*
+import kotlinx.android.synthetic.main.activity_song_detail.*
 import org.jetbrains.anko.*
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -66,6 +71,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var unlocked = false
     private val markers = arrayListOf<Marker>()
     private var difficulty: Int = 1
+    private lateinit var progressDialog: ProgressDialog
+    private var receiver = NetworkReceiver()
+    private var connectionLost = false
+    private var connectionLostMapLoadFailed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -149,101 +158,108 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
         item.itemId == R.id.action_hint -> {
 
-            alert("Want a hint?") {
+            if (connectionLost) {
+                alert("Please check your network connection","Download failed")  {
+                    positiveButton("Ok") { }
+                }.show()
+            } else {
 
-                positiveButton("Yes please!") {
-                    var hintWord: String
+                alert("Want a hint?") {
 
-                    var maxInterest = when (difficulty) {
-                        1 -> "unclassified"
-                        2 -> "notboring"
-                        3 -> "interesting"
-                        4 -> "interesting"
-                        5 -> "veryinteresting"
-                        else -> "noDifficultyError"
-                    }
+                    positiveButton("Yes please!") {
+                        var hintWord: String
 
-                    var hintMarker: Marker = markers[0]
-                    var hintTag: String? = null
-
-                    fun getHintWord() {
-                        for (marker in markers) {
-                            if (marker.title == maxInterest && !wordsCollected.contains(marker.tag)) {
-                                hintMarker = marker
-                                hintTag = marker.tag as String
-                                break
-                            }
+                        var maxInterest = when (difficulty) {
+                            1 -> "unclassified"
+                            2 -> "notboring"
+                            3 -> "interesting"
+                            4 -> "interesting"
+                            5 -> "veryinteresting"
+                            else -> "noDifficultyError"
                         }
-                    }
 
-                    getHintWord()
+                        var hintMarker: Marker = markers[0]
+                        var hintTag: String? = null
 
-                    if (hintTag == null) {
-                        maxInterest = when (difficulty) {
-                            2 -> "boring"
-                            3 -> "notboring"
-                            4 -> "notboring"
-                            5 -> "interesting"
-                            else -> "noChange"
-                        }
-                    }
-
-                    if (maxInterest != "noChange") {
-                        getHintWord()
-                    }
-
-                    if (hintTag == null) {
-                        maxInterest = when (difficulty) {
-                            3 -> "boring"
-                            4 -> "boring"
-                            5 -> "notboring"
-                            else -> "noChange"
-                        }
-                    }
-
-                    if (maxInterest != "noChange") {
-                        getHintWord()
-                    }
-
-                    if (hintTag == null && difficulty == 5) {
-                        maxInterest = "boring"
-                        getHintWord()
-                    }
-
-                    println(hintTag)
-                    println(maxInterest)
-
-                    if (hintTag != null && maxInterest != "noDifficultyError") {
-
-                        doAsync {
-
-                            val urlWords = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt")
-
-                            val br = BufferedReader(InputStreamReader(urlWords.openStream()))
-                            val lines = arrayListOf<String>()
-                            var line: String? = null
-
-                            while ({ line = br.readLine(); line }() != null) {
-                                if (line != null) {
-                                    lines.add(line!!)
+                        fun getHintWord() {
+                            for (marker in markers) {
+                                if (marker.title == maxInterest && !wordsCollected.contains(marker.tag)) {
+                                    hintMarker = marker
+                                    hintTag = marker.tag as String
+                                    break
                                 }
                             }
+                        }
 
-                            uiThread {
-                                hintMarker.isVisible = false
-                                wordsCollected.add(hintMarker.tag as String)
-                                println(wordsCollected)
-                                hintWord = lines[hintTag!!.substringBefore(':').toInt()-1].split(" ")[hintTag!!.substringAfter(':').toInt()-1]
-                                alert("\n\"$hintWord\"\n\nThink you've got it now?", "Here's a word that might help...") {
-                                    positiveButton("Yep!") { makeGuess() }
-                                    negativeButton("Not yet - keep playing") {}
-                                }.show()
+                        getHintWord()
+
+                        if (hintTag == null) {
+                            maxInterest = when (difficulty) {
+                                2 -> "boring"
+                                3 -> "notboring"
+                                4 -> "notboring"
+                                5 -> "interesting"
+                                else -> "noChange"
+                            }
+                        }
+
+                        if (maxInterest != "noChange") {
+                            getHintWord()
+                        }
+
+                        if (hintTag == null) {
+                            maxInterest = when (difficulty) {
+                                3 -> "boring"
+                                4 -> "boring"
+                                5 -> "notboring"
+                                else -> "noChange"
+                            }
+                        }
+
+                        if (maxInterest != "noChange") {
+                            getHintWord()
+                        }
+
+                        if (hintTag == null && difficulty == 5) {
+                            maxInterest = "boring"
+                            getHintWord()
+                        }
+
+                        println(hintTag)
+                        println(maxInterest)
+
+                        if (hintTag != null && maxInterest != "noDifficultyError") {
+
+                            doAsync {
+
+                                val urlWords = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt")
+
+                                val br = BufferedReader(InputStreamReader(urlWords.openStream()))
+                                val lines = arrayListOf<String>()
+                                var line: String? = null
+
+                                while ({ line = br.readLine(); line }() != null) {
+                                    if (line != null) {
+                                        lines.add(line!!)
+                                    }
+                                }
+
+                                uiThread {
+                                    hintMarker.isVisible = false
+                                    wordsCollected.add(hintMarker.tag as String)
+                                    println(wordsCollected)
+                                    hintWord = lines[hintTag!!.substringBefore(':').toInt() - 1].split(" ")[hintTag!!.substringAfter(':').toInt() - 1]
+                                    alert("\n\"$hintWord\"\n\nThink you've got it now?", "Here's a word that might help...") {
+                                        positiveButton("Yep!") { makeGuess() }
+                                        negativeButton("Not yet - keep playing") {}
+                                    }.show()
+                                }
                             }
                         }
                     }
-                }
-                negativeButton("No I'm fine thanks") {}
-            }.show()
+                    negativeButton("No I'm fine thanks") {}
+                }.show()
+            }
             true
         }
         else -> false
@@ -252,6 +268,10 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     override fun onStart() {
         super.onStart()
         mGoogleApiClient.connect()
+
+        // Register BroadcastReceiver to track connection changes.
+        val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
+        this.registerReceiver(receiver, filter)
 
         // Restore preferences
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
@@ -276,11 +296,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             println("Security exception thrown [onMapReady]")
         }
 
-        val progressDialog = progressDialog(message = "Please wait", title = "Setting up the Songle map…") {
+        processMarkers()
+
+    }
+
+    private fun processMarkers() {
+
+        progressDialog = progressDialog(message = "Please wait", title = "Setting up the Songle map…") {
             setProgressStyle(STYLE_SPINNER)
             setCancelable(false)
         }
-
         doAsync {
             val url = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/map$difficulty.kml")
             val conn = url.openConnection() as HttpURLConnection
@@ -347,6 +372,35 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 }
                 layer.removeLayerFromMap()
                 progressDialog.dismiss()
+            }
+        }
+    }
+
+    private inner class NetworkReceiver: BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val connMgr = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val networkInfo = connMgr.activeNetworkInfo
+
+            if (networkInfo != null) {
+                // Network is available
+                if (connectionLostMapLoadFailed) {
+                    val snackbar : Snackbar = Snackbar.make(findViewById(R.id.map),"Connected", Snackbar.LENGTH_SHORT)
+                    snackbar.show()
+                    processMarkers()
+                    connectionLostMapLoadFailed = false
+                }
+                if (connectionLost) {
+                    connectionLost = false
+                }
+            } else {
+                // No network connection
+                if (progressDialog.isShowing) {
+                    progressDialog.dismiss()
+                    val snackbar = Snackbar.make(findViewById(R.id.map),"No internet connection available", Snackbar.LENGTH_INDEFINITE)
+                    snackbar.show()
+                    connectionLostMapLoadFailed = true
+                }
+                connectionLost = true
             }
         }
     }
@@ -503,6 +557,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
     override fun onPause() {
         super.onPause()
+
+        unregisterReceiver(receiver)
 
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)

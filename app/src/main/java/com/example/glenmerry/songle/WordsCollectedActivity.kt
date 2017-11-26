@@ -1,15 +1,20 @@
 package com.example.glenmerry.songle
 
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.net.ConnectivityManager
 import android.os.Bundle
+import android.support.design.widget.Snackbar
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.EditText
+import kotlinx.android.synthetic.main.activity_song_detail.*
 import kotlinx.android.synthetic.main.activity_words_found.*
 import org.jetbrains.anko.activityUiThread
 import org.jetbrains.anko.doAsync
@@ -23,6 +28,8 @@ class WordsCollectedActivity : AppCompatActivity() {
     private var wordsCollected = arrayListOf<String>()
     private var wordsWithPos = HashMap<String, String>()
     private var unlocked = false
+    private var connectionLost = false
+    private var receiver = NetworkReceiver()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +52,19 @@ class WordsCollectedActivity : AppCompatActivity() {
                 .forEach { wordsFound.put(it, wordsWithPos[it]!!) }
         println("Words Found >>>>> $wordsFound")
 
+        processLyrics()
+
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        // Register BroadcastReceiver to track connection changes.
+        val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
+        this.registerReceiver(receiver, filter)
+    }
+
+    private fun processLyrics() {
         doAsync {
             val url = URL(("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt"))
             val lyrics = url.readText()
@@ -124,6 +144,32 @@ class WordsCollectedActivity : AppCompatActivity() {
         }
     }
 
+    private inner class NetworkReceiver: BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val connMgr = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val networkInfo = connMgr.activeNetworkInfo
+
+            if (networkInfo != null) {
+                // Network is available
+                if (connectionLost) {
+                    val snackbar : Snackbar = Snackbar.make(textViewWords,"Connected", Snackbar.LENGTH_SHORT)
+                    snackbar.show()
+                    connectionLost = false
+                    if (textViewWords.text.isEmpty()) {
+                        processLyrics()
+                    }
+                }
+            } else {
+                // No network connection
+                if (textViewWords.text.isEmpty()) {
+                    val snackbar = Snackbar.make(textViewWords, "No internet connection available", Snackbar.LENGTH_INDEFINITE)
+                    snackbar.show()
+                    connectionLost = true
+                }
+            }
+        }
+    }
+
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_lyrics_found, menu)
         return true
@@ -143,6 +189,9 @@ class WordsCollectedActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+
+        unregisterReceiver(receiver)
+
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
 
@@ -157,54 +206,6 @@ class WordsCollectedActivity : AppCompatActivity() {
         editor.putInt("storedGuessCount", guessCount)
         editor.apply()
     }
-
-    /*private fun makeGuess() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Make a guess")
-        builder.setMessage("Please input the song title")
-        val input = EditText(this)
-        input.inputType = InputType.TYPE_CLASS_TEXT
-        builder.setView(input)
-        builder.setPositiveButton("Make Guess!") { dialog, which ->
-            toast(songs[songToPlayIndexString.toInt()-1].title.toLowerCase())
-            if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()-1].title.toLowerCase()) {
-                val builder2 = AlertDialog.Builder(this)
-                builder2.setTitle("Nice one, you guessed correctly!")
-                builder2.setMessage("View the full lyrics, share with your friends or move to the next song?")
-                builder2.setPositiveButton("Next Song") { dialog, which ->
-                    val intent = Intent(this, MapsActivity::class.java)
-                    startActivity(intent)
-                }
-                builder2.setNegativeButton("View Lyrics") { dialog, which ->
-                    val intent = Intent(this, SongDetailActivity::class.java)
-                    intent.putExtra("song", songs[songToPlayIndexString.toInt()])
-                    startActivity(intent)
-                }
-                builder2.setNeutralButton("Share") { dialog, which ->
-                    val sharingIntent = Intent(Intent.ACTION_SEND)
-                    sharingIntent.type = "text/plain"
-                    sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
-                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked Bohemian Rhapsody by Queen on Songle!")
-                    startActivity(Intent.createChooser(sharingIntent, "Share via"))
-                }
-                builder2.show()
-            } else {
-                val builder2 = AlertDialog.Builder(this)
-                guessCount++
-                builder2.setTitle("Sorry, that's not quite right")
-                builder2.setMessage("Guess again?")
-                builder2.setPositiveButton("Guess again") { dialog, which ->
-                    makeGuess()
-                }
-                builder2.setNegativeButton("Back to found lyrics") { dialog, which ->
-                    dialog.cancel()
-                }
-                builder2.show()
-            }
-        }
-        builder.setNegativeButton("Cancel") { dialog, which -> dialog.cancel() }
-        builder.show()
-    }*/
 
     private fun makeGuess() {
         val builder = AlertDialog.Builder(this)

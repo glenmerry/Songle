@@ -1,11 +1,15 @@
 package com.example.glenmerry.songle
 
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Bundle
 import android.support.design.widget.FloatingActionButton
+import android.support.design.widget.Snackbar
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
 import android.view.LayoutInflater
@@ -21,13 +25,14 @@ import java.net.URL
 class SongDetailActivity : AppCompatActivity() {
 
     private lateinit var song: Song
+    private var receiver = NetworkReceiver()
+    private var connectionLost = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_song_detail)
 
         song = intent.extras.getParcelable("song")
-
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
         if (song.title.length <= 20) {
@@ -62,12 +67,49 @@ class SongDetailActivity : AppCompatActivity() {
             }
         }
 
+        downloadLyrics()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Register BroadcastReceiver to track connection changes.
+        val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
+        this.registerReceiver(receiver, filter)
+    }
+
+    private fun downloadLyrics() {
         doAsync {
             val url = URL(("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/${song.number}/lyrics.txt"))
             val lyrics = url.readText()
 
             activityUiThread {
                 textViewLyrics.text = lyrics
+            }
+        }
+    }
+
+    private inner class NetworkReceiver: BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val connMgr = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val networkInfo = connMgr.activeNetworkInfo
+
+            if (networkInfo != null) {
+                // Network is available
+                if (connectionLost) {
+                    val snackbar : Snackbar = Snackbar.make(fav_fab,"Connected", Snackbar.LENGTH_SHORT)
+                    snackbar.show()
+                    connectionLost = false
+                    if (textViewLyrics.text.isEmpty()) {
+                        downloadLyrics()
+                    }
+                }
+            } else {
+                // No network connection
+                if (textViewLyrics.text.isEmpty()) {
+                    val snackbar = Snackbar.make(fav_fab,"No internet connection available", Snackbar.LENGTH_INDEFINITE)
+                    snackbar.show()
+                }
+                connectionLost = true
             }
         }
     }
@@ -106,6 +148,9 @@ class SongDetailActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+
+        unregisterReceiver(receiver)
+
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
 
