@@ -13,6 +13,7 @@ class SongListXMLParser {
 
     @Throws(XmlPullParserException::class, IOException::class)
     fun parse(input: InputStream): ArrayList<Song> {
+        // Parse KML from InputStream
         input.use {
             val parser = Xml.newPullParser()
             parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)

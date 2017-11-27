@@ -241,27 +241,36 @@ class WordsCollectedActivity : AppCompatActivity() {
 
         builder.setView(input)
         builder.setPositiveButton("Make Guess!") { _, _ ->
-            if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()-1].title.toLowerCase()) {
+            // Compare input to song title, ignore case and punctuation
+            if (input.text.toString().replace(Regex("[^A-Za-z ]"), "").toLowerCase() ==
+                    songs[songToPlayIndexString.toInt() - 1].title.replace(Regex("[^A-Za-z ]"), "").toLowerCase()) {
+
                 // Correct guess, add song to list of unlocked songs
                 songsUnlocked.add(songs[songToPlayIndexString.toInt()-1])
                 wordsCollected.clear()
                 wordsWithPos.clear()
+                unlocked = true
+                guessCount = 0
 
+                // Dialog for correct guess
                 val builderCorrect = AlertDialog.Builder(this)
                 builderCorrect.setTitle("Nice one, you guessed correctly!")
                 builderCorrect.setMessage("View the full lyrics, share with your friends or move to the next song?")
+
                 builderCorrect.setPositiveButton("Next Song") { _, _ ->
-                    // Move onto next song to play
-                    unlocked = true
-                    guessCount = 0
+                    // Move onto next song to play, return to Maps Activity then Main Activity
+                    // since unlocked variable is set, then new song index will be found and
+                    // Maps activity will be re-launched
                     onBackPressed()
                 }
+
                 builderCorrect.setNegativeButton("View Lyrics") { _, _ ->
                     // Show lyrics in Song Details activity
                     val intent = Intent(this, SongDetailActivity::class.java)
                     intent.putExtra("song", songs[songToPlayIndexString.toInt()-1])
                     startActivity(intent)
                 }
+
                 builderCorrect.setNeutralButton("Share") { _, _ ->
                     // Start sharing intent
                     val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
@@ -272,6 +281,8 @@ class WordsCollectedActivity : AppCompatActivity() {
                                     "${songs[songToPlayIndexString.toInt()-1].artist} on Songle!")
                     startActivity(Intent.createChooser(sharingIntent, "Share via"))
                 }
+
+                // User cannot cancel dialog, or else song index would not be updated
                 builderCorrect.setCancelable(false)
                 builderCorrect.show()
 
@@ -279,13 +290,10 @@ class WordsCollectedActivity : AppCompatActivity() {
                 // Incorrect guess, save input for showing on future guess dialog
                 incorrectGuess = input.text.toString()
 
+                // Increment guess counter
                 guessCount++
-                if (guessCount == 3) {
-                    // If guessCount reaches 3, the hint option should be shown to the user
-                    // This is done by invalidating the options to force it to redraw
-                    invalidateOptionsMenu()
-                }
 
+                // Dialog for incorrect guess
                 val builderIncorrect = AlertDialog.Builder(this)
                 builderIncorrect.setTitle("Sorry, that's not quite right")
                 builderIncorrect.setMessage("Guess again?")
