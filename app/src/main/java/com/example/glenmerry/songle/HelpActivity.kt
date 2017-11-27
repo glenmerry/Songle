@@ -35,6 +35,7 @@ class HelpActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
         item.itemId == android.R.id.home -> {
+            // If back option selected, return to Main Activity
             onBackPressed()
             true
         }

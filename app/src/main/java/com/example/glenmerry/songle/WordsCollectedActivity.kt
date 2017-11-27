@@ -30,30 +30,30 @@ class WordsCollectedActivity : AppCompatActivity() {
     private var unlocked = false
     private var connectionLost = false
     private var receiver = NetworkReceiver()
+    private var incorrectGuess: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_words_found)
+
+        // If song is already unlocked, return to Main Activity
         if (unlocked) {
             onBackPressed()
         }
 
+        // Get values from intent extras
         songToPlayIndexString = intent.extras.getString("songToPlay")
-        println("Song name >>>>> ${songs[songToPlayIndexString.toInt()-1].title}")
         guessCount = intent.extras.getInt("guessCount")
-        println("Guesses made >>>>> $guessCount ")
         wordsCollected = intent.extras.getStringArrayList("wordsCollected")
-        println("Words collected >>>>> $wordsCollected")
         wordsWithPos = intent.extras.getSerializable("wordsWithPos") as HashMap<String, String>
-        println("Words with positions >>>>> $wordsWithPos")
 
+        // Add words collected and their positions to wordsFound Hash Map
         wordsCollected
                 .filter { wordsWithPos.containsKey(it) }
                 .forEach { wordsFound.put(it, wordsWithPos[it]!!) }
-        println("Words Found >>>>> $wordsFound")
 
+        // Download and process song lyrics
         processLyrics()
-
     }
 
     override fun onStart() {
@@ -65,81 +65,90 @@ class WordsCollectedActivity : AppCompatActivity() {
     }
 
     private fun processLyrics() {
+        // Download and process lyrics asynchronously
         doAsync {
+            // Create URL and use it to download and store lyrics as String
             val url = URL(("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt"))
             val lyrics = url.readText()
 
-            activityUiThread {
-                val lines = lyrics.split('\n')
-                val lyricsLines = HashMap<Int, String>()
-                for (i in lines.subList(0, lines.size-1).indices) {
-                    lyricsLines.put(i, lines[i])
+            // Split lyrics into lines by splitting on newline characters
+            val lines = lyrics.split('\n')
+
+            // Create HashMap with line indices and string of their words
+            val lyricsLines = HashMap<Int, String>()
+            for (i in lines.subList(0, lines.size-1).indices) {
+                lyricsLines.put(i, lines[i])
+            }
+
+            // Replace all alphanumeric character with 'full block' character
+            val regex = Regex("[a-zA-Z0-9]")
+            val blockedOut = lyrics.replace(regex, "█")
+
+            val blockedOutLines = blockedOut.split("\n").toCollection(ArrayList())
+
+            // Iterate through all collected words to replace block character with actual word
+            for (word in wordsFound) {
+
+                // Get line number of word using first part of word identifier
+                val oldLine = blockedOutLines[word.key.substringBefore(':').toInt()-1]
+
+                // wordStartIndices HashMap stores start indices of each word in the line
+                val wordStartIndices = HashMap<Int, Int>()
+                var wordCount = 1
+                wordStartIndices.put(1, 0)
+
+                for (i in 1 until oldLine.length-1) {
+                    if (oldLine[i] == ' ') {
+                        // if space then word starts at next index
+                        wordCount++
+                        wordStartIndices.put(wordCount, i+1)
+                    }
                 }
 
-                println("Lyrics lines >>>>> $lyricsLines")
+                // Find start index of intended word using seconds part of word identifier
+                val wordAddStartIndex = wordStartIndices[word.key.substringAfter(':').toInt()]
+                var wordAddEndIndex: Int = -1
 
-                val regex = Regex("[a-zA-Z0-9]")
-                val blockedOut = lyrics.replace(regex, "█")
-
-                val blockedOutLines = blockedOut.split("\n").toCollection(ArrayList())
-
-                println("Blocked Out Lines >>>>> $blockedOutLines")
-
-                for (word in wordsFound) {
-                    val oldLine = blockedOutLines[word.key.substringBefore(':').toInt()-1]
-                    println("Old line >>>>> $oldLine")
-
-                    val wordStartIndices = HashMap<Int, Int>()
-                    var wordCount = 1
-                    wordStartIndices.put(1, 0)
-
-                    for (i in 1 until oldLine.length-1) {
-                        if (oldLine[i] == ' ') {
-                            wordCount++
-                            wordStartIndices.put(wordCount, i)
-                        }
+                // Iterate from start of word to end of line
+                for (i in wordAddStartIndex!!+1 until oldLine.length-1) {
+                    if (oldLine[i] == ' ') {
+                        // If space then word ends at previous index
+                        wordAddEndIndex = i-1
+                        break
                     }
+                }
 
-                    val wordAddStartIndex = wordStartIndices[word.key.substringAfter(':').toInt()]
-                    var wordAddEndIndex: Int = -1
+                // StringBuilder to hold line string after full block removed from word
+                val newLine = StringBuilder()
 
-                    for (i in wordAddStartIndex!!+1 until oldLine.length-1) {
-                        if (oldLine[i] == ' ') {
-                            println("space at index $i")
-                            wordAddEndIndex = i-1
-                            break
-                        }
-                    }
+                // Add characters from old line until start of word being added
+                for (i in 0 until wordAddStartIndex) {
+                    newLine.append(oldLine[i])
+                }
 
-                    println("Word start index is $wordAddStartIndex and word end index $wordAddEndIndex")
+                // Then append the unlocked word with its full block removed
+                newLine.append(word.value)
 
-                    val newLine = StringBuilder()
-
-                    for (i in 0 until wordAddStartIndex) {
+                // Then, if word is not at end of line, append characters from old line until end of line
+                if (wordAddEndIndex != -1) {
+                    for (i in wordAddEndIndex+1 until oldLine.length) {
                         newLine.append(oldLine[i])
                     }
-
-                    newLine.append(" ${word.value}")
-
-                    if (wordAddEndIndex != -1) {
-                        for (i in wordAddEndIndex+1 until oldLine.length) {
-                            newLine.append(oldLine[i])
-                        }
-                    }
-
-                    println("New line >>>>> $newLine")
-
-
-                    blockedOutLines[word.key.substringBefore(':').toInt()-1] = newLine.toString()
                 }
 
-                val newLyrics = StringBuilder()
-                for (line in blockedOutLines) {
-                    newLyrics.append("$line\n")
-                }
+                // Change line in blockedOutLines to updated version
+                blockedOutLines[word.key.substringBefore(':').toInt()-1] = newLine.toString()
+            }
 
+            // Use StringBuilder to build string of lines of lyrics after updates for collected words made
+            val newLyrics = StringBuilder()
+            for (line in blockedOutLines) {
+                newLyrics.append("$line\n")
+            }
+
+            activityUiThread {
+                // Add processed lyrics string to text view
                 textViewWords.text = newLyrics
-
             }
         }
     }
@@ -152,15 +161,18 @@ class WordsCollectedActivity : AppCompatActivity() {
             if (networkInfo != null) {
                 // Network is available
                 if (connectionLost) {
+                    // If connection was previously lost, show "Connected" snackbar
                     val snackbar : Snackbar = Snackbar.make(textViewWords,"Connected", Snackbar.LENGTH_SHORT)
                     snackbar.show()
                     connectionLost = false
+
+                    // If lyrics have not been downloaded and process, attempt to download again
                     if (textViewWords.text.isEmpty()) {
                         processLyrics()
                     }
                 }
             } else {
-                // No network connection
+                // No network connection, if lyrics not yet downloaded show no connection snackbar
                 if (textViewWords.text.isEmpty()) {
                     val snackbar = Snackbar.make(textViewWords, "No internet connection available", Snackbar.LENGTH_INDEFINITE)
                     snackbar.show()
@@ -171,12 +183,14 @@ class WordsCollectedActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        // Inflate options menu
         menuInflater.inflate(R.menu.menu_lyrics_found, menu)
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
         item.itemId == android.R.id.home -> {
+            // If back option selected, return to Maps Activity
             onBackPressed()
             true
         }
@@ -190,7 +204,11 @@ class WordsCollectedActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
 
-        unregisterReceiver(receiver)
+        try {
+            unregisterReceiver(receiver)
+        } catch(e: IllegalArgumentException) {
+            println("Receiver not registered")
+        }
 
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
@@ -208,44 +226,66 @@ class WordsCollectedActivity : AppCompatActivity() {
     }
 
     private fun makeGuess() {
+        // Alert dialog for user to input guess into
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Make a guess")
         builder.setMessage("Please input the song title")
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_TEXT
+
+        if (!incorrectGuess.isNullOrEmpty()) {
+            // If user has already guessed incorrectly, show their previous guess in the alert dialog
+            input.text.append(incorrectGuess)
+            input.setSelectAllOnFocus(true)
+        }
+
         builder.setView(input)
         builder.setPositiveButton("Make Guess!") { _, _ ->
             if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()-1].title.toLowerCase()) {
+                // Correct guess, add song to list of unlocked songs
                 songsUnlocked.add(songs[songToPlayIndexString.toInt()-1])
                 wordsCollected.clear()
                 wordsWithPos.clear()
+
                 val builderCorrect = AlertDialog.Builder(this)
                 builderCorrect.setTitle("Nice one, you guessed correctly!")
                 builderCorrect.setMessage("View the full lyrics, share with your friends or move to the next song?")
                 builderCorrect.setPositiveButton("Next Song") { _, _ ->
+                    // Move onto next song to play
                     unlocked = true
                     guessCount = 0
                     onBackPressed()
                 }
                 builderCorrect.setNegativeButton("View Lyrics") { _, _ ->
+                    // Show lyrics in Song Details activity
                     val intent = Intent(this, SongDetailActivity::class.java)
                     intent.putExtra("song", songs[songToPlayIndexString.toInt()-1])
                     startActivity(intent)
                 }
                 builderCorrect.setNeutralButton("Share") { _, _ ->
+                    // Start sharing intent
                     val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
                     sharingIntent.type = "text/plain"
                     sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
-                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked ${songs[songToPlayIndexString.toInt()-1].title} by ${songs[songToPlayIndexString.toInt()-1].artist} on Songle!")
+                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT,
+                            "I unlocked ${songs[songToPlayIndexString.toInt()-1].title} by " +
+                                    "${songs[songToPlayIndexString.toInt()-1].artist} on Songle!")
                     startActivity(Intent.createChooser(sharingIntent, "Share via"))
                 }
                 builderCorrect.setCancelable(false)
                 builderCorrect.show()
+
             } else {
+                // Incorrect guess, save input for showing on future guess dialog
+                incorrectGuess = input.text.toString()
+
                 guessCount++
                 if (guessCount == 3) {
+                    // If guessCount reaches 3, the hint option should be shown to the user
+                    // This is done by invalidating the options to force it to redraw
                     invalidateOptionsMenu()
                 }
+
                 val builderIncorrect = AlertDialog.Builder(this)
                 builderIncorrect.setTitle("Sorry, that's not quite right")
                 builderIncorrect.setMessage("Guess again?")
@@ -263,6 +303,7 @@ class WordsCollectedActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        // On return to Maps Activity, send guess count and unlocked boolean in intent extras
         val intent = Intent()
         intent.putExtra("returnGuessCount", guessCount)
         intent.putExtra("returnUnlocked", unlocked)

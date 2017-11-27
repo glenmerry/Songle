@@ -17,11 +17,9 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
+import android.widget.ProgressBar
 import kotlinx.android.synthetic.main.content_main.*
-import org.jetbrains.anko.activityUiThread
-import org.jetbrains.anko.alert
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.selector
+import org.jetbrains.anko.*
 import org.xmlpull.v1.XmlPullParserException
 import java.io.IOException
 import java.io.InputStream
@@ -38,7 +36,6 @@ val prefsFile = "MyPrefsFile" // for storing preferences
 
 class MainActivity : AppCompatActivity() {
 
-    // The BroadcastReceiver that tracks network connectivity changes.
     private var receiver = NetworkReceiver()
     private var connectionLost = false
     private var selectedDifficulty: Int? = null
@@ -62,15 +59,28 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Song progress text view is blank until songs downloaded
         textViewProgress.text = ""
 
         downloadSongs()
 
+        buttonSelectDifficulty.setOnClickListener {
+            // Dialog prompting user to select difficulty level
+            selector("Please select a difficulty", difficulties, { _, i ->
+                selectedDifficulty = (5-i)
+                // Update difficulty level text view
+                textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
+            })
+        }
+
         buttonPlay.setOnClickListener {
             if (!connectionLost) {
                 if (selectedDifficulty != null) {
+                    // If difficulty has been selected, start Maps Activity
                     startMaps()
                 } else {
+                    // If no difficulty selected, first prompt user to select difficulty
+                    // and only then start Maps Activity
                     selector("Please select a difficulty", difficulties, { _, i ->
                         selectedDifficulty = (5 - i)
                         textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
@@ -78,20 +88,14 @@ class MainActivity : AppCompatActivity() {
                     })
                 }
             } else {
+                // If no internet connection, do not launch Maps Activity and show alert dialog
                 alert("Please check your internet connection", "Songle is unable to connect") {
                     positiveButton("Ok") { }
                 }.show()
             }
         }
 
-        buttonSelectDifficulty.setOnClickListener {
-            selector("Please select a difficulty", difficulties, { _, i ->
-                selectedDifficulty = (5-i)
-                textViewShowDiff.text = "Current Difficulty: ${difficulties[i]}"
-            })
-        }
-
-        if (walkingTarget != null) {
+        /*if (walkingTarget != null) {
             progressBarWalkingTarget.max = walkingTarget!!
             if (distanceWalked < walkingTarget!!) {
                 progressBarWalkingTarget.progress = distanceWalked
@@ -105,46 +109,51 @@ class MainActivity : AppCompatActivity() {
                 progressBarWalkingTarget.progress = walkingTarget!!
                 textViewProgressWalkingTarget.text = "Congratulations you've reached your walking target of $walkingTarget, set a new one?"
             }
-        }
+        }*/
 
         buttonSetTarget.setOnClickListener {
+            // Create alert dialog in which user can enter desired walking target
             val alert = AlertDialog.Builder(this)
             alert.setTitle("Set a new walking target in metres")
             val input = EditText(this)
+            // User is given numeric keyboard as we only want numeric input
             input.inputType = InputType.TYPE_CLASS_NUMBER
             input.setRawInputType(Configuration.KEYBOARD_12KEY)
             alert.setView(input)
             alert.setPositiveButton("Set", { _, _ ->
-                targetMet = false
-                walkingTarget = input.text.toString().toInt()
-                walkingTargetProgress = 0
-                progressBarWalkingTarget.progress = 0
-                walkingTargetProgressWithUnit = "0m"
-                walkingTargetWithUnit = if (walkingTarget!! < 1000) {
-                    "${walkingTarget}m"
-                } else {
-                    "${BigDecimal(walkingTarget!!.toDouble()/1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
-                }
-                progressBarWalkingTarget.max = walkingTarget!!
-                if (distanceWalked > 0) {
-                    distanceWalkedWithUnit = if (distanceWalked < 1000) {
-                        "${distanceWalked}m"
-                    } else {
-                        "${BigDecimal(distanceWalked.toDouble()/1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
-                    }
-                    if (distanceWalked == walkingTarget) {
-                        "$distanceWalkedWithUnit walked of $walkingTargetWithUnit target!\n"
-                    } else {
-                        textViewProgressWalkingTarget.text = "$walkingTargetProgressWithUnit walked of $walkingTargetWithUnit target!\n" +
-                                "$distanceWalkedWithUnit total walked while playing Songle!"
-                    }
-                } else {
+                if (input.text.isNotEmpty()) {
+                    // New walking target set
+                    progressBarWalkingTarget.visibility = View.VISIBLE
+                    targetMet = false
+                    walkingTarget = input.text.toString().toInt()
+                    // Walking target progress is reset
+                    walkingTargetProgress = 0
+                    progressBarWalkingTarget.progress = 0
+                    walkingTargetProgressWithUnit = "0m"
+                    walkingTargetWithUnit = distToString(walkingTarget!!)
+                    progressBarWalkingTarget.max = walkingTarget!!
                     if (distanceWalked > 0) {
-                        textViewProgressWalkingTarget.text = "0m walked of $walkingTargetWithUnit target\n" +
-                                "$distanceWalkedWithUnit total walked while playing Songle!"
+                        distanceWalkedWithUnit = if (distanceWalked < 1000) {
+                            "${distanceWalked}m"
+                        } else {
+                            "${BigDecimal(distanceWalked.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
+                        }
+                        if (distanceWalked == walkingTarget) {
+                            "$distanceWalkedWithUnit walked of $walkingTargetWithUnit target!\n"
+                        } else {
+                            textViewProgressWalkingTarget.text = "$walkingTargetProgressWithUnit walked of $walkingTargetWithUnit target!\n" +
+                                    "$distanceWalkedWithUnit total walked while playing Songle!"
+                        }
                     } else {
-                        textViewProgressWalkingTarget.text = "0m walked of $walkingTargetWithUnit target!"
+                        if (distanceWalked > 0) {
+                            textViewProgressWalkingTarget.text = "0m walked of $walkingTargetWithUnit target\n" +
+                                    "$distanceWalkedWithUnit total walked while playing Songle!"
+                        } else {
+                            textViewProgressWalkingTarget.text = "0m walked of $walkingTargetWithUnit target!"
+                        }
                     }
+                } else {
+                    toast("Please enter a number!")
                 }
             })
             alert.setNegativeButton("Cancel", { _, _ -> })
@@ -194,7 +203,7 @@ class MainActivity : AppCompatActivity() {
             "${BigDecimal(distanceWalked.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
         }
 
-        if (walkingTarget != -1) {
+        if (walkingTarget != -1 && walkingTarget != null) {
             progressBarWalkingTarget.max = walkingTarget!!
             progressBarWalkingTarget.progress = walkingTargetProgress
 
@@ -227,7 +236,24 @@ class MainActivity : AppCompatActivity() {
         } else {
             walkingTarget = null
             progressBarWalkingTarget.progress = 0
-            textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit walked while playing Songle!"
+            progressBarWalkingTarget.visibility = View.GONE
+            textViewProgressWalkingTarget.text = "\n$distanceWalkedWithUnit walked while playing Songle!"
+        }
+    }
+
+    private fun indexToString(i: Int): String {
+        return if (i < 10) {
+            "0$i"
+        } else {
+            i.toString()
+        }
+    }
+
+    private fun distToString(d: Int): String {
+        return if (d < 1000) {
+            "${d}m"
+        } else {
+            "${BigDecimal(d.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
         }
     }
 
@@ -358,7 +384,11 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
 
-        unregisterReceiver(receiver)
+        try {
+            unregisterReceiver(receiver)
+        } catch(e: IllegalArgumentException) {
+            println("Receiver not registered")
+        }
 
         if (resetTriggered) {
             // If game has been reset, return early and do not store shared preferences
@@ -402,8 +432,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
-        Log.i("Main activity","onActivityResult")
-
         if (requestCode == 1) {
             if (resultCode == Activity.RESULT_OK) {
                 distanceWalked = data.getIntExtra("returnDistance", distanceWalked)
@@ -646,6 +674,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resetGame() {
+        songsUnlocked.clear()
+        favourites.clear()
         this@MainActivity.deleteSharedPreferences(com.example.glenmerry.songle.prefsFile)
         resetTriggered = true
         val intent = baseContext.packageManager.getLaunchIntentForPackage(baseContext.packageName)

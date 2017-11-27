@@ -11,29 +11,30 @@ import android.view.MenuItem
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.ListView
+import kotlinx.android.synthetic.main.activity_songs_unlocked.*
 import org.jetbrains.anko.toast
 
 class SongsUnlockedActivity : AppCompatActivity() {
 
     private var artistAndTitles = ArrayList<String>()
-    private lateinit var indexInSongs: ArrayList<Int>
+    private var indexInSongs = ArrayList<Int>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_songs_unlocked)
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
-        indexInSongs = arrayListOf()
-
+        // Iterate through songs, if song is unlocked, add its artist and title to artistAndTitles,
+        // if locked, add lock character
         for (i in songs.indices) {
             if (songsUnlocked.contains(songs[i])) {
                 artistAndTitles.add("${songs[i].artist} - ${songs[i].title}")
-                indexInSongs.add(i)
             } else {
                 artistAndTitles.add("\uD83D\uDD12")
-                indexInSongs.add(i)
             }
         }
+
+        // Sort list of songs so that unlocked songs always appear above locked songs
         val sortedArray = Array(artistAndTitles.size) {""}
         for (i in artistAndTitles.indices) {
             var start = 0
@@ -47,28 +48,40 @@ class SongsUnlockedActivity : AppCompatActivity() {
             }
         }
         artistAndTitles = sortedArray.toCollection(ArrayList())
+
+        // After sorting, add index in original songs list to indexInSongs list so that data for
+        // songs in sorted array can be easily found
         for (i in artistAndTitles.indices) {
             songs.indices
                     .filter { "${songs[it].artist} - ${songs[it].title}" == artistAndTitles[i] }
-                    .forEach { indexInSongs[i] = it }
+                    .forEach { indexInSongs.add(it) }
         }
+
+        // Show artists and titles in list view
         showList(artistAndTitles, indexInSongs)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        // Inflate options menu
         menuInflater.inflate(R.menu.menu_songs_unlocked, menu)
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when {
         item.itemId == android.R.id.home -> {
+            // If back option selected, return to Main Activity
             onBackPressed()
             true
         }
         item.itemId == R.id.action_show_favourites -> {
             if (supportActionBar!!.title == "Unlocked Songs") {
+                // Not currently showing favourites, so we switch to showing favourites
+                // Set action bar title to Favorite Songs
                 supportActionBar!!.title = "Favourite Songs"
+                // Favourite icon changed to fully coloured version
                 item.icon = ContextCompat.getDrawable(this, R.drawable.ic_favorite_white_24px)
+
+                // Build list of artist and titles of favourites songs, and keep track of index in songs
                 val artistAndTitlesFav = arrayListOf<String>()
                 val indexInSongsFav = ArrayList<Int>()
                 for (fav in favourites) {
@@ -79,10 +92,16 @@ class SongsUnlockedActivity : AppCompatActivity() {
                                 .mapTo(indexInSongsFav) { songs.indexOf(it) }
                     }
                 }
+                // Show favourites in list view
                 showList(artistAndTitlesFav, indexInSongsFav)
             } else {
+                // If currently showing favourites, switch to all songs
+                // Set action bar title back to "Unlocked Songs"
                 supportActionBar!!.title = "Unlocked Songs"
+                // Switch favorite icon back to only outline
                 item.icon = ContextCompat.getDrawable(this, R.drawable.ic_favorite_border_white_24px)
+
+                // Show all songs in list view
                 showList(artistAndTitles, indexInSongs)
             }
             true
@@ -91,16 +110,18 @@ class SongsUnlockedActivity : AppCompatActivity() {
     }
 
     private fun showList(artistAndTitles: ArrayList<String>, indexInSongs: ArrayList<Int>) {
-        val listView = findViewById(R.id.list) as ListView
+        // Create array adapter for list view
         val adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, artistAndTitles)
-        listView.adapter = adapter
-        listView.onItemClickListener = AdapterView.OnItemClickListener { adapterView, view, i, l ->
+        list.adapter = adapter
+        list.onItemClickListener = AdapterView.OnItemClickListener { _, _, i, _ ->
             if (artistAndTitles[i] != "\uD83D\uDD12") {
+                // If song not locked, open song in Song Detail Activity
                 val intent = Intent(this, SongDetailActivity::class.java)
                 intent.putExtra("song", songs[indexInSongs[i]])
                 intent.putExtra("favourites", favourites)
                 startActivityForResult(intent, 1)
             } else {
+                // If song locked, present toast message
                 toast("Song Locked!")
             }
         }
@@ -108,12 +129,14 @@ class SongsUnlockedActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
 
         // We need an Editor object to make preference changes.
         val editor = settings.edit()
 
+        // Store titles of favourites in shared preferences
         val titlesFav = favourites
                 .map { it.title }
                 .toSet()
@@ -122,9 +145,13 @@ class SongsUnlockedActivity : AppCompatActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+        // Returning from Song Detail Activity
         if (requestCode == 1) {
             if (resultCode == Activity.RESULT_OK) {
+                // Get favourites from intent extras
                 favourites = data.getParcelableArrayListExtra("returnFavourites")
+
+                // If we are currently showing favourites, update in case of change
                 if (supportActionBar!!.title == "Favourite Songs") {
                     val artistAndTitlesFav = arrayListOf<String>()
                     val indexInSongsFav = ArrayList<Int>()

@@ -22,9 +22,11 @@ import android.support.v4.content.ContextCompat
 import android.support.v4.content.ContextCompat.checkSelfPermission
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
+import android.text.Editable
 import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
+import android.view.WindowManager
 import android.widget.EditText
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
@@ -57,7 +59,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     //var mLocationPermissionGranted = false
     private var mLastLocation: Location? = null
     private val tag = "MapsActivity"
-    private var songToPlayIndexString = "01"
+    private var songToPlayIndexString: String? = null
     private var distanceWalked = 0.toFloat()
     private lateinit var lastLoc: Location
     private var targetMet = false
@@ -75,6 +77,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var receiver = NetworkReceiver()
     private var connectionLost = false
     private var connectionLostMapLoadFailed = false
+    private var incorrectGuess: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
@@ -84,6 +87,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
         difficulty = intent.extras.getInt("difficulty")
         songToPlayIndexString = intent.extras.getString("songToPlay")
+
+        if (songToPlayIndexString != null) {
+            toast("Playing song: ${songs[songToPlayIndexString!!.toInt() - 1].title}")
+        } else {
+            onBackPressed()
+        }
+
         songsSkipped = intent.extras.getParcelableArrayList("songsSkipped")
         distanceWalked = intent.extras.getInt("distanceWalked").toFloat()
         walkingTarget = intent.extras.getInt("walkingTarget")
@@ -93,8 +103,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             walkingTargetProgress = intent.extras.getInt("walkingTargetProgress").toFloat()
         }
         targetMet = intent.extras.getBoolean("targetMet")
-
-        toast("Playing song: ${songs[songToPlayIndexString.toInt()-1].title}")
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
@@ -142,28 +150,22 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             true
         }
         item.itemId == R.id.action_skip -> {
-            alert("Are you sure you want to skip this song?") {
-                positiveButton("Yes please") {
-                    songsSkipped.add(songs[songToPlayIndexString.toInt()-1])
-                    wordsCollected.clear()
-                    wordsWithPos.clear()
-                    guessCount = 0
-                    skip = true
-                    onBackPressed()
-                    toast("Skipped song ${songs[songToPlayIndexString.toInt()-1].title}")
-                }
-                negativeButton("No thanks") {}
-            }.show()
+            skipSong()
             true
         }
         item.itemId == R.id.action_hint -> {
 
+            println("Markers size: ${markers.size}")
             if (connectionLost) {
                 alert("Please check your network connection","Download failed")  {
                     positiveButton("Ok") { }
                 }.show()
+            } else if (markers.isEmpty()) {
+                alert("Sorry, no more words available...") {
+                    positiveButton("Make guess") { makeGuess() }
+                    negativeButton("Skip song") { skipSong() }
+                }.show()
             } else {
-
                 alert("Want a hint?") {
 
                     positiveButton("Yes please!") {
@@ -260,9 +262,29 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     negativeButton("No I'm fine thanks") {}
                 }.show()
             }
+
             true
         }
         else -> false
+    }
+
+    private fun skipSong() {
+        alert("Are you sure you want to skip this song?") {
+            positiveButton("Yes please") {
+                if (songToPlayIndexString == null) {
+                    onBackPressed()
+                } else {
+                    songsSkipped.add(songs[songToPlayIndexString!!.toInt() - 1])
+                    wordsCollected.clear()
+                    wordsWithPos.clear()
+                    guessCount = 0
+                    skip = true
+                    onBackPressed()
+                    toast("Skipped song ${songs[songToPlayIndexString!!.toInt() - 1].title}")
+                }
+            }
+            negativeButton("No thanks") {}
+        }.show()
     }
 
     override fun onStart() {
@@ -276,8 +298,12 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         // Restore preferences
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
         wordsCollected.addAll(settings.getStringSet("storedWordsCollected", setOf()))
-        if (songsUnlocked.contains(songs[songToPlayIndexString.toInt()-1])) {
-            unlocked = true
+        if (songToPlayIndexString != null) {
+            if (songsUnlocked.contains(songs[songToPlayIndexString!!.toInt() - 1])) {
+                unlocked = true
+                onBackPressed()
+            }
+        } else {
             onBackPressed()
         }
         guessCount = settings.getInt("storedGuessCount", guessCount)
@@ -453,11 +479,13 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     input.setRawInputType(Configuration.KEYBOARD_12KEY)
                     alert.setView(input)
                     alert.setPositiveButton("Set", { _, _ ->
-                        val newWalkingTarget = input.text.toString().toInt()
-                        if (walkingTarget != null && walkingTarget!! > 0) {
-                            targetMet = false
-                            walkingTarget = newWalkingTarget
-                            walkingTargetProgress = 0.toFloat()
+                        if (input.text.isNotEmpty()) {
+                            val newWalkingTarget = input.text.toString().toInt()
+                            if (walkingTarget != null && walkingTarget!! > 0) {
+                                targetMet = false
+                                walkingTarget = newWalkingTarget
+                                walkingTargetProgress = 0.toFloat()
+                            }
                         }
                     })
                     alert.setNegativeButton("Cancel", { _, _ ->
@@ -558,7 +586,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     override fun onPause() {
         super.onPause()
 
-        unregisterReceiver(receiver)
+        try {
+            unregisterReceiver(receiver)
+        } catch(e: IllegalArgumentException) {
+            println("Receiver not registered")
+        }
 
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
@@ -626,67 +658,78 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     }
 
     private fun makeGuess() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Make a guess")
-        builder.setMessage("Please input the song title")
-        val input = EditText(this)
-        input.inputType = InputType.TYPE_CLASS_TEXT
-        builder.setView(input)
-        builder.setPositiveButton("Make Guess!") { _, _ ->
+        if (songToPlayIndexString != null) {
+            val builder = AlertDialog.Builder(this)
+            builder.setTitle("Make a guess")
+            builder.setMessage("Please input the song title")
+            val input = EditText(this)
+            input.inputType = InputType.TYPE_CLASS_TEXT
 
-            if (input.text.toString().toLowerCase() == songs[songToPlayIndexString.toInt()-1].title.toLowerCase()) {
-
-                songsUnlocked.add(songs[songToPlayIndexString.toInt()-1])
-                wordsCollected.clear()
-                wordsWithPos.clear()
-                unlocked = true
-                guessCount = 0
-
-                val builderCorrect = AlertDialog.Builder(this)
-                builderCorrect.setTitle("Nice one, you guessed correctly!")
-                builderCorrect.setMessage("View the full lyrics, share with your friends or move to the next song?")
-                builderCorrect.setPositiveButton("Next Song") { _, _ ->
-                    onBackPressed()
-                }
-                builderCorrect.setNegativeButton("View Lyrics") { _, _ ->
-                    val intent = Intent(this, SongDetailActivity::class.java)
-                    intent.putExtra("song", songs[songToPlayIndexString.toInt()-1])
-                    startActivityForResult(intent, 2)
-                }
-                builderCorrect.setNeutralButton("Share") { _, _ ->
-                    val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
-                    sharingIntent.type = "text/plain"
-                    sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
-                    sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked ${songs[songToPlayIndexString.toInt()-1].title} by ${songs[songToPlayIndexString.toInt()-1].artist} on Songle!")
-                    startActivity(Intent.createChooser(sharingIntent, "Share via"))
-                }
-                builderCorrect.setCancelable(false)
-                builderCorrect.show()
-
-            } else {
-
-                guessCount++
-                if (guessCount == 3) {
-                    invalidateOptionsMenu()
-                }
-
-                val builderIncorrect = AlertDialog.Builder(this)
-                builderIncorrect.setTitle("Sorry, that's not quite right")
-                builderIncorrect.setMessage("Guess again?")
-                builderIncorrect.setPositiveButton("Guess again") { _, _ ->
-                    makeGuess()
-                }
-                builderIncorrect.setNegativeButton("Back to map") { dialog, _ ->
-                    dialog.cancel()
-                }
-                builderIncorrect.show()
-
+            if (!incorrectGuess.isNullOrEmpty()) {
+                input.text.append(incorrectGuess)
+                input.setSelectAllOnFocus(true)
             }
 
-        }
-        builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
-        builder.show()
-        if (unlocked) {
+            builder.setView(input)
+            builder.setPositiveButton("Make Guess!") { _, _ ->
+
+                // Compare input to song title, ignore case and punctuation
+                if (input.text.toString().replace(Regex("[^A-Za-z ]"), "").toLowerCase() ==
+                        songs[songToPlayIndexString!!.toInt() - 1].title.replace(Regex("[^A-Za-z ]"), "").toLowerCase()) {
+
+                    songsUnlocked.add(songs[songToPlayIndexString!!.toInt() - 1])
+                    wordsCollected.clear()
+                    wordsWithPos.clear()
+                    unlocked = true
+                    guessCount = 0
+
+                    val builderCorrect = AlertDialog.Builder(this)
+                    builderCorrect.setTitle("Nice one, you guessed correctly!")
+                    builderCorrect.setMessage("View the full lyrics, share with your friends or move to the next song?")
+                    builderCorrect.setPositiveButton("Next Song") { _, _ ->
+                        onBackPressed()
+                    }
+                    builderCorrect.setNegativeButton("View Lyrics") { _, _ ->
+                        val intent = Intent(this, SongDetailActivity::class.java)
+                        intent.putExtra("song", songs[songToPlayIndexString!!.toInt() - 1])
+                        startActivityForResult(intent, 2)
+                    }
+                    builderCorrect.setNeutralButton("Share") { _, _ ->
+                        val sharingIntent = Intent(android.content.Intent.ACTION_SEND)
+                        sharingIntent.type = "text/plain"
+                        sharingIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, "Songle")
+                        sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, "I unlocked ${songs[songToPlayIndexString!!.toInt() - 1].title} by ${songs[songToPlayIndexString!!.toInt() - 1].artist} on Songle!")
+                        startActivity(Intent.createChooser(sharingIntent, "Share via"))
+                    }
+                    builderCorrect.setCancelable(false)
+                    builderCorrect.show()
+
+                } else {
+                    incorrectGuess = input.text.toString()
+
+                    guessCount++
+                    if (guessCount == 3) {
+                        invalidateOptionsMenu()
+                    }
+
+                    val builderIncorrect = AlertDialog.Builder(this)
+                    builderIncorrect.setTitle("Sorry, that's not quite right")
+                    builderIncorrect.setMessage("Guess again?")
+                    builderIncorrect.setPositiveButton("Guess again") { _, _ ->
+                        makeGuess()
+                    }
+                    builderIncorrect.setNegativeButton("Back to map") { dialog, _ ->
+                        dialog.cancel()
+                    }
+                    builderIncorrect.show()
+                }
+            }
+            builder.setNegativeButton("Cancel") { dialog, _ -> dialog.cancel() }
+            builder.show()
+            if (unlocked) {
+                onBackPressed()
+            }
+        } else {
             onBackPressed()
         }
     }
