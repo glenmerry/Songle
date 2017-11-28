@@ -54,6 +54,8 @@ class MainActivity : AppCompatActivity() {
     private var songsSkipped = arrayListOf<Song>()
     private var songToPlayIndexString: String? = null
     private var resetTriggered = false
+    private var skip = false
+    private var unlocked = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -299,6 +301,11 @@ class MainActivity : AppCompatActivity() {
             intent.putExtra("walkingTarget", walkingTarget)
             intent.putExtra("walkingTargetProgress", walkingTargetProgress)
             intent.putExtra("targetMet", targetMet)
+            if (skip || unlocked) {
+                // If previous song skipped or unlocked, clear tasks relating to Maps Activity from
+                // stack so that none referring to previous song remain
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
             startActivityForResult(intent, 1)
         }
     }
@@ -497,7 +504,7 @@ class MainActivity : AppCompatActivity() {
                     textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit walked while playing Songle!"
                 }
 
-                val skip = data.getBooleanExtra("returnSkip", false)
+                skip = data.getBooleanExtra("returnSkip", false)
                 if (skip) {
                     // Song has been skipped
 
@@ -523,7 +530,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                val unlocked = data.getBooleanExtra("returnUnlocked", false)
+                unlocked = data.getBooleanExtra("returnUnlocked", false)
                 if (unlocked) {
                     // Song has been unlocked
 
