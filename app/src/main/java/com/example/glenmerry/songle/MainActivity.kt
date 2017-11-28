@@ -298,14 +298,10 @@ class MainActivity : AppCompatActivity() {
             intent.putExtra("songToPlay", songToPlayIndexString)
             intent.putExtra("songsSkipped", songsSkipped)
             intent.putExtra("distanceWalked", distanceWalked)
+            intent.putExtra("distanceWalkedHidden", distanceWakedHidden)
             intent.putExtra("walkingTarget", walkingTarget)
             intent.putExtra("walkingTargetProgress", walkingTargetProgress)
             intent.putExtra("targetMet", targetMet)
-            if (skip || unlocked) {
-                // If previous song skipped or unlocked, clear tasks relating to Maps Activity from
-                // stack so that none referring to previous song remain
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            }
             startActivityForResult(intent, 1)
         }
     }
@@ -501,7 +497,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 } else {
                     // No target, so only show total distance walked
-                    textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit walked while playing Songle!"
+                    textViewProgressWalkingTarget.text = "\n$distanceWalkedWithUnit walked while playing Songle!"
                 }
 
                 skip = data.getBooleanExtra("returnSkip", false)

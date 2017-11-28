@@ -60,6 +60,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private val tag = "MapsActivity"
     private var songToPlayIndexString: String? = null
     private var distanceWalked = 0.toFloat()
+    private var trackingDisabled = false
     private var targetMet = false
     private var songsSkipped = arrayListOf<Song>()
     private var guessCount: Int = 0
@@ -94,6 +95,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
         songsSkipped = intent.extras.getParcelableArrayList("songsSkipped")
         distanceWalked = intent.extras.getInt("distanceWalked").toFloat()
+        trackingDisabled = intent.extras.getBoolean("distanceWalkedHidden")
         walkingTarget = intent.extras.getInt("walkingTarget")
         if (walkingTarget == 0) {
             // No walking target has been set
@@ -117,11 +119,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
                 .build()
-
-        // lastLoc contains the last known location, initially populated with zeros
-        //lastLoc = Location("")
-        //lastLoc.latitude = 0.0
-        //lastLoc.longitude = 0.0
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -488,7 +485,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             println("[onLocationChanged] Location unknown")
         }
 
-        if (mLastLocation != null && current != null) {
+        if (mLastLocation != null && current != null && !trackingDisabled) {
             // A location has been saved from previously and a current location is available
             // Calculate distance between current and last locations and add this to distance walked
             val distToAdd = current.distanceTo(mLastLocation)
@@ -708,13 +705,16 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
         intent.putExtra("returnWalkingTargetProgress", walkingTargetProgress.toInt())
         if (skip) {
+            // If song skipped, return to Main Activity for new song index to be found
             intent.putExtra("returnSkip", skip)
         }
         if (unlocked) {
+            // If song skipped, return to Main Activity for new song index to be found
             intent.putExtra("returnUnlocked", unlocked)
         }
         setResult(Activity.RESULT_OK, intent)
-        finish()
+        // Ensure no tasks remaining with old song
+        finishAndRemoveTask()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
