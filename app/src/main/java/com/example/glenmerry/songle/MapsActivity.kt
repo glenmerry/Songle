@@ -77,6 +77,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     private var connectionLost = false
     private var connectionLostMapLoadFailed = false
     private var incorrectGuess: String? = null
+    private var lyricLines = arrayListOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -140,11 +141,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         item.itemId == R.id.action_words_collected -> {
             // Launch Words Collected Activity
             val intent = Intent(this, WordsCollectedActivity::class.java)
-            intent.putExtra("songToPlay", songToPlayIndexString)
-            intent.putExtra("guessCount", guessCount)
-            intent.putExtra("wordsCollected", wordsCollected)
-            intent.putExtra("wordsWithPos", wordsWithPos)
-            startActivityForResult(intent, 1)
+            if (lyricLines.isNotEmpty()) {
+                intent.putExtra("lyricLines", lyricLines)
+                intent.putExtra("songToPlay", songToPlayIndexString)
+                intent.putExtra("guessCount", guessCount)
+                intent.putExtra("wordsCollected", wordsCollected)
+                intent.putExtra("wordsWithPos", wordsWithPos)
+                startActivityForResult(intent, 1)
+            } else {
+                alert("Please check your internet connection","Download error") {
+                    positiveButton("Ok") { }
+                }
+            }
             true
         }
         item.itemId == R.id.action_guess -> {
@@ -185,13 +193,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
     }
 
     private fun getHint() {
-        if (connectionLost) {
-            // Cannot download hint word unless connected
-            alert("Please check your network connection","Download failed")  {
-                positiveButton("Ok") { }
-            }.show()
-
-        } else if (markers.isEmpty()) {
+        if (markers.isEmpty()) {
             // All words have already been collected/given as hints
             alert("Sorry, no more words available...") {
                 positiveButton("Make guess") { makeGuess() }
@@ -266,34 +268,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     }
 
                     if (hintTag != null && maxInterest != "noDifficultyError") {
-                        // Hint word has been found, download the song lyrics to get actual word
-                        doAsync {
-                            val urlWords = URL("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt")
-                            val br = BufferedReader(InputStreamReader(urlWords.openStream()))
-                            // Get lines of lyrics
-                            val lines = arrayListOf<String>()
-                            var line: String? = null
-                            while ({ line = br.readLine(); line }() != null) {
-                                if (line != null) {
-                                    lines.add(line!!)
-                                }
-                            }
+                        // Hint word has been found
 
-                            uiThread {
-                                // Hide marker and add to collected words
-                                hintMarker.isVisible = false
-                                wordsCollected.add(hintMarker.tag as String)
+                        // Hide marker and add to collected words
+                        hintMarker.isVisible = false
+                        wordsCollected.add(hintTag as String)
 
-                                // Get hint word from lyrics using line and word index from tag
-                                hintWord = lines[hintTag!!.substringBefore(':').toInt() - 1].split(" ")[hintTag!!.substringAfter(':').toInt() - 1]
-
-                                // Display hint word to user
-                                alert("\n\"$hintWord\"\n\nThink you've got it now?", "Here's a word that might help...") {
-                                    positiveButton("Yep!") { makeGuess() }
-                                    negativeButton("Not yet - keep playing") { }
-                                }.show()
-                            }
-                        }
+                        // Display hint word to user
+                        alert("\n\"${wordsWithPos[hintTag!!]}\"\n\nThink you've got it now?", "Here's a word that might help...") {
+                            positiveButton("Yep!") { makeGuess() }
+                            negativeButton("Not yet - keep playing") { }
+                        }.show()
                     }
                 }
                 negativeButton("No I'm fine thanks") { }
@@ -385,10 +370,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
             // Create list of lines of lyrics
             val br = BufferedReader(InputStreamReader(urlWords.openStream()))
-            val lines = arrayListOf<String>()
             var line: String? = null
             while({ line = br.readLine(); line}() != null) {
-                lines.add(line!!)
+                lyricLines.add(line!!)
             }
 
             activityUiThread {
@@ -403,7 +387,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     // Get word identifier from placemark name
                     val name = placemark.getProperty("name")
                     // Get words in line of placemark word
-                    val wordsInLine = lines[name.substringBefore(':').toInt()-1].split(" ")
+                    val wordsInLine = lyricLines[name.substringBefore(':').toInt()-1].split(" ")
                     // Store actual word with position in lyrics in wordsWithPos HashMap
                     wordsWithPos.put(name, wordsInLine[name.substringAfter(':').toInt()-1])
 
@@ -509,13 +493,18 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         }
 
         if (walkingTarget != null && walkingTargetProgress >= walkingTarget!! && !targetMet) {
+            // User has met walking target
             targetMet = true
+            // Convert distance to string with unit
             val walkingTargetWithUnit = if (walkingTarget!! < 1000) {
                 "${walkingTarget!!.toInt()}m"
             } else {
                 "${BigDecimal(walkingTarget!!.toDouble() / 1000).setScale(2, BigDecimal.ROUND_HALF_UP)}km"
             }
+
+            // Display congratulations message
             alert("You hit your walking target of $walkingTargetWithUnit", "Congratulations!") {
+                // Allow user to set new target
                 positiveButton("Set new target") {
                     val alert = AlertDialog.Builder(this@MapsActivity)
                     alert.setTitle("Set a new walking target in metres")
@@ -524,7 +513,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     input.setRawInputType(Configuration.KEYBOARD_12KEY)
                     alert.setView(input)
                     alert.setPositiveButton("Set", { _, _ ->
+                        // Ensure some number has been entered
                         if (input.text.isNotEmpty()) {
+                            // Update target
                             val newWalkingTarget = input.text.toString().toInt()
                             if (walkingTarget != null && walkingTarget!! > 0) {
                                 targetMet = false
@@ -533,9 +524,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                             }
                         }
                     })
-                    alert.setNegativeButton("Cancel", { _, _ ->
-
-                    })
+                    alert.setNegativeButton("Cancel", { _, _ -> })
                     alert.show()
                 }
                 negativeButton("Back to map") {}
@@ -548,8 +537,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
             return
         }
 
-        if (nearestWordAndDist != null && nearestWordAndDist.second <= 10) {
-            // Nearest marker is within 10m so is available to collect
+        if (nearestWordAndDist != null && nearestWordAndDist.second <= 20) {
+            // Nearest marker is within 20m so is available to collect
             // Display nearest word snackbar
             Snackbar
                     .make(findViewById(R.id.map),"Nearest word is ${nearestWordAndDist.second}m away", Snackbar.LENGTH_INDEFINITE)
@@ -577,7 +566,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
 
                     }.show()
         } else if (nearestWordAndDist != null) {
-            // Nearest word is over 10m away display distance in snackbar but now collect button
+            // Nearest word is over 20m away display distance in snackbar but now collect button
             Snackbar.make(findViewById(R.id.map), "Nearest word is ${nearestWordAndDist.second}m away", Snackbar.LENGTH_INDEFINITE).show()
         }
     }

@@ -23,14 +23,13 @@ import java.net.URL
 class WordsCollectedActivity : AppCompatActivity() {
 
     private val wordsFound = HashMap<String, String>()
-    private var songToPlayIndexString = "01"
+    private var songToPlayIndexString = String()
     private var guessCount:Int = 0
     private var wordsCollected = arrayListOf<String>()
     private var wordsWithPos = HashMap<String, String>()
     private var unlocked = false
-    private var connectionLost = false
-    private var receiver = NetworkReceiver()
     private var incorrectGuess: String? = null
+    private var lyricLines = arrayListOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +41,7 @@ class WordsCollectedActivity : AppCompatActivity() {
         }
 
         // Get values from intent extras
+        lyricLines = intent.extras.getStringArrayList("lyricLines")
         songToPlayIndexString = intent.extras.getString("songToPlay")
         guessCount = intent.extras.getInt("guessCount")
         wordsCollected = intent.extras.getStringArrayList("wordsCollected")
@@ -56,130 +56,74 @@ class WordsCollectedActivity : AppCompatActivity() {
         processLyrics()
     }
 
-    override fun onStart() {
-        super.onStart()
-
-        // Register BroadcastReceiver to track connection changes.
-        val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
-        this.registerReceiver(receiver, filter)
-    }
-
     private fun processLyrics() {
-        // Download and process lyrics asynchronously
-        doAsync {
-            // Create URL and use it to download and store lyrics as String
-            val url = URL(("http://www.inf.ed.ac.uk/teaching/courses/cslp/data/songs/$songToPlayIndexString/lyrics.txt"))
-            val lyrics = url.readText()
+        // Replace all alphanumeric character in lines of lyrics with 'full block' character
+        val regex = Regex("[a-zA-Z0-9]")
+        val blockedOutLines = arrayListOf<String>()
+        lyricLines.mapTo(blockedOutLines) { it.replace(regex, "█") }
 
-            // Split lyrics into lines by splitting on newline characters
-            val lines = lyrics.split('\n')
+        // Iterate through all collected words to replace block character with actual word
+        for (word in wordsFound) {
 
-            // Create HashMap with line indices and string of their words
-            val lyricsLines = HashMap<Int, String>()
-            for (i in lines.subList(0, lines.size-1).indices) {
-                lyricsLines.put(i, lines[i])
+            // Get line number of word using first part of word identifier
+            val oldLine = blockedOutLines[word.key.substringBefore(':').toInt()-1]
+
+            // wordStartIndices HashMap stores start indices of each word in the line
+            val wordStartIndices = HashMap<Int, Int>()
+            var wordCount = 1
+            wordStartIndices.put(1, 0)
+
+            for (i in 1 until oldLine.length-1) {
+                if (oldLine[i] == ' ') {
+                    // if space then word starts at next index
+                    wordCount++
+                    wordStartIndices.put(wordCount, i+1)
+                }
             }
 
-            // Replace all alphanumeric character with 'full block' character
-            val regex = Regex("[a-zA-Z0-9]")
-            val blockedOut = lyrics.replace(regex, "█")
+            // Find start index of intended word using seconds part of word identifier
+            val wordAddStartIndex = wordStartIndices[word.key.substringAfter(':').toInt()]
+            var wordAddEndIndex: Int = -1
 
-            val blockedOutLines = blockedOut.split("\n").toCollection(ArrayList())
-
-            // Iterate through all collected words to replace block character with actual word
-            for (word in wordsFound) {
-
-                // Get line number of word using first part of word identifier
-                val oldLine = blockedOutLines[word.key.substringBefore(':').toInt()-1]
-
-                // wordStartIndices HashMap stores start indices of each word in the line
-                val wordStartIndices = HashMap<Int, Int>()
-                var wordCount = 1
-                wordStartIndices.put(1, 0)
-
-                for (i in 1 until oldLine.length-1) {
-                    if (oldLine[i] == ' ') {
-                        // if space then word starts at next index
-                        wordCount++
-                        wordStartIndices.put(wordCount, i+1)
-                    }
+            // Iterate from start of word to end of line
+            for (i in wordAddStartIndex!!+1 until oldLine.length-1) {
+                if (oldLine[i] == ' ') {
+                    // If space then word ends at previous index
+                    wordAddEndIndex = i-1
+                    break
                 }
+            }
 
-                // Find start index of intended word using seconds part of word identifier
-                val wordAddStartIndex = wordStartIndices[word.key.substringAfter(':').toInt()]
-                var wordAddEndIndex: Int = -1
+            // StringBuilder to hold line string after full block removed from word
+            val newLine = StringBuilder()
 
-                // Iterate from start of word to end of line
-                for (i in wordAddStartIndex!!+1 until oldLine.length-1) {
-                    if (oldLine[i] == ' ') {
-                        // If space then word ends at previous index
-                        wordAddEndIndex = i-1
-                        break
-                    }
-                }
+            // Add characters from old line until start of word being added
+            for (i in 0 until wordAddStartIndex) {
+                newLine.append(oldLine[i])
+            }
 
-                // StringBuilder to hold line string after full block removed from word
-                val newLine = StringBuilder()
+            // Then append the unlocked word with its full block removed
+            newLine.append(word.value)
 
-                // Add characters from old line until start of word being added
-                for (i in 0 until wordAddStartIndex) {
+            // Then, if word is not at end of line, append characters from old line until end of line
+            if (wordAddEndIndex != -1) {
+                for (i in wordAddEndIndex+1 until oldLine.length) {
                     newLine.append(oldLine[i])
                 }
-
-                // Then append the unlocked word with its full block removed
-                newLine.append(word.value)
-
-                // Then, if word is not at end of line, append characters from old line until end of line
-                if (wordAddEndIndex != -1) {
-                    for (i in wordAddEndIndex+1 until oldLine.length) {
-                        newLine.append(oldLine[i])
-                    }
-                }
-
-                // Change line in blockedOutLines to updated version
-                blockedOutLines[word.key.substringBefore(':').toInt()-1] = newLine.toString()
             }
 
-            // Use StringBuilder to build string of lines of lyrics after updates for collected words made
-            val newLyrics = StringBuilder()
-            for (line in blockedOutLines) {
-                newLyrics.append("$line\n")
-            }
-
-            activityUiThread {
-                // Add processed lyrics string to text view
-                textViewWords.text = newLyrics
-            }
+            // Change line in blockedOutLines to updated version
+            blockedOutLines[word.key.substringBefore(':').toInt()-1] = newLine.toString()
         }
-    }
 
-    private inner class NetworkReceiver: BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val connMgr = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val networkInfo = connMgr.activeNetworkInfo
-
-            if (networkInfo != null) {
-                // Network is available
-                if (connectionLost) {
-                    // If connection was previously lost, show "Connected" snackbar
-                    val snackbar : Snackbar = Snackbar.make(textViewWords,"Connected", Snackbar.LENGTH_SHORT)
-                    snackbar.show()
-                    connectionLost = false
-
-                    // If lyrics have not been downloaded and process, attempt to download again
-                    if (textViewWords.text.isEmpty()) {
-                        processLyrics()
-                    }
-                }
-            } else {
-                // No network connection, if lyrics not yet downloaded show no connection snackbar
-                if (textViewWords.text.isEmpty()) {
-                    val snackbar = Snackbar.make(textViewWords, "No internet connection available", Snackbar.LENGTH_INDEFINITE)
-                    snackbar.show()
-                    connectionLost = true
-                }
-            }
+        // Use StringBuilder to build string of lines of lyrics after updates for collected words made
+        val newLyrics = StringBuilder()
+        for (line in blockedOutLines) {
+            newLyrics.append("$line\n")
         }
+
+        // Add processed lyrics string to text view
+        textViewWords.text = newLyrics
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -203,12 +147,6 @@ class WordsCollectedActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-
-        try {
-            unregisterReceiver(receiver)
-        } catch(e: IllegalArgumentException) {
-            println("Receiver not registered")
-        }
 
         // All objects are from android.context.Context
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
