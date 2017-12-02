@@ -3,7 +3,6 @@ package com.example.glenmerry.songle
 import android.Manifest
 import android.app.Activity
 import android.app.ProgressDialog
-import android.app.ProgressDialog.STYLE_HORIZONTAL
 import android.app.ProgressDialog.STYLE_SPINNER
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -22,11 +21,9 @@ import android.support.v4.content.ContextCompat
 import android.support.v4.content.ContextCompat.checkSelfPermission
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
-import android.text.Editable
 import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
-import android.view.WindowManager
 import android.widget.EditText
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
@@ -41,8 +38,6 @@ import com.google.android.gms.maps.model.*
 import com.google.maps.android.data.kml.KmlContainer
 import com.google.maps.android.data.kml.KmlLayer
 import com.google.maps.android.data.kml.KmlPoint
-import kotlinx.android.synthetic.main.activity_maps.*
-import kotlinx.android.synthetic.main.activity_song_detail.*
 import org.jetbrains.anko.*
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -319,6 +314,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         // Centre map on George Square
         val georgeSq = LatLng(55.944009, -3.188438)
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(georgeSq, 15.7.toFloat()))
+        mMap.uiSettings.isZoomControlsEnabled = true // enable zoom control
+        mMap.uiSettings.isMapToolbarEnabled = false // disable map toolbar on marker press
 
         try {
             // Visualise current position with a small blue circle
