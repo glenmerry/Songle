@@ -1,7 +1,6 @@
 package com.example.glenmerry.songle
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.support.v4.content.ContextCompat
@@ -10,7 +9,6 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.ListView
 import kotlinx.android.synthetic.main.activity_songs_unlocked.*
 import org.jetbrains.anko.toast
 
@@ -125,23 +123,6 @@ class SongsUnlockedActivity : AppCompatActivity() {
                 toast("Song Locked!")
             }
         }
-    }
-
-    override fun onPause() {
-        super.onPause()
-
-        // All objects are from android.context.Context
-        val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
-
-        // We need an Editor object to make preference changes.
-        val editor = settings.edit()
-
-        // Store titles of favourites in shared preferences
-        val titlesFav = favourites
-                .map { it.title }
-                .toSet()
-        editor.putStringSet("storedFavourites", titlesFav)
-        editor.apply()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {

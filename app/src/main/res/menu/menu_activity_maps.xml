@@ -5,19 +5,19 @@
         android:id="@+id/action_words_collected"
         android:icon="@drawable/ic_format_align_center_white_24px"
         android:title="@string/action_lyrics_list"
-        app:showAsAction="always"/>
+        app:showAsAction="ifRoom"/>
 
     <item
         android:id="@+id/action_hint"
         android:icon="@drawable/ic_lightbulb_outline_white_24px"
         android:title="@string/action_hint"
-        app:showAsAction="always"/>
+        app:showAsAction="ifRoom"/>
 
     <item
         android:id="@+id/action_guess"
         android:icon="@drawable/ic_create_white_24px"
         android:title="@string/action_guess"
-        app:showAsAction="always"/>
+        app:showAsAction="ifRoom"/>
 
     <item
         android:id="@+id/action_skip"

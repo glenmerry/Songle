@@ -86,6 +86,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         if (songToPlayIndexString != null) {
             toast("Playing song: ${songs[songToPlayIndexString!!.toInt() - 1].title}")
         } else {
+            // If no song index, return to Main Activity
             onBackPressed()
         }
 
@@ -293,15 +294,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         // Restore preferences
         val settings = getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
         wordsCollected.addAll(settings.getStringSet("storedWordsCollected", setOf()))
-        if (songToPlayIndexString != null) {
-            if (songsUnlocked.contains(songs[songToPlayIndexString!!.toInt() - 1])) {
-                unlocked = true
-                onBackPressed()
-            }
-        } else {
-            // If no song index, return to Main Activity
-            onBackPressed()
-        }
         guessCount = settings.getInt("storedGuessCount", guessCount)
         // If user has guessed at least 3 times, invalidate options menu so that hint option shows
         if (guessCount >= 3) {
@@ -314,7 +306,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         // Centre map on George Square
         val georgeSq = LatLng(55.944009, -3.188438)
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(georgeSq, 15.7.toFloat()))
-        mMap.uiSettings.isZoomControlsEnabled = true // enable zoom control
         mMap.uiSettings.isMapToolbarEnabled = false // disable map toolbar on marker press
 
         try {

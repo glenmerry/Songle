@@ -12,12 +12,10 @@ import android.support.design.widget.Snackbar
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import android.text.InputType
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
-import android.widget.ProgressBar
 import kotlinx.android.synthetic.main.content_main.*
 import org.jetbrains.anko.*
 import org.xmlpull.v1.XmlPullParserException
@@ -96,22 +94,6 @@ class MainActivity : AppCompatActivity() {
                 }.show()
             }
         }
-
-        /*if (walkingTarget != null) {
-            progressBarWalkingTarget.max = walkingTarget!!
-            if (distanceWalked < walkingTarget!!) {
-                progressBarWalkingTarget.progress = distanceWalked
-                distanceWalkedWithUnit = if (distanceWalked < 1000) {
-                    "${distanceWalked}m"
-                } else {
-                    "${distanceWalked / 1000}km"
-                }
-                textViewProgressWalkingTarget.text = "$distanceWalkedWithUnit walked of $walkingTargetWithUnit target!"
-            } else {
-                progressBarWalkingTarget.progress = walkingTarget!!
-                textViewProgressWalkingTarget.text = "Congratulations you've reached your walking target of $walkingTarget, set a new one?"
-            }
-        }*/
 
         buttonSetTarget.setOnClickListener {
             // Create alert dialog in which user can enter desired walking target
@@ -224,11 +206,11 @@ class MainActivity : AppCompatActivity() {
                 if (walkingTargetProgress != distanceWalked) {
                     // User walked some distance before setting target, show target progress and
                     // total distance separately
-                    textViewProgressWalkingTarget.text = "${walkingTargetProgressWithUnit} walked of $walkingTargetWithUnit target!\n" +
+                    textViewProgressWalkingTarget.text = "$walkingTargetProgressWithUnit walked of $walkingTargetWithUnit target!\n" +
                             "$distanceWalkedWithUnit total walked while playing Songle!"
                 } else {
                     // User has only walked whilst target has been set, only show distance towards target
-                    textViewProgressWalkingTarget.text = "${walkingTargetProgressWithUnit} walked of $walkingTargetWithUnit target!"
+                    textViewProgressWalkingTarget.text = "$walkingTargetProgressWithUnit walked of $walkingTargetWithUnit target!"
                 }
             } else {
                 // User has met their target, display target reached message
@@ -334,8 +316,12 @@ class MainActivity : AppCompatActivity() {
             if (item.isChecked) {
                 // If distance feature now enabled, show button, progress bar, textview
                 buttonSetTarget.visibility = View.VISIBLE
-                progressBarWalkingTarget.visibility = View.VISIBLE
                 textViewProgressWalkingTarget.visibility = View.VISIBLE
+
+                // Only show progress bar if target set
+                if (walkingTarget != null) {
+                    progressBarWalkingTarget.visibility = View.VISIBLE
+                }
             } else {
                 // If feature now hidden, hide elements
                 buttonSetTarget.visibility = View.GONE
@@ -346,7 +332,7 @@ class MainActivity : AppCompatActivity() {
         }
         R.id.action_collect_distance_reset -> {
             // Option to reset distance data
-            alert("Distance walked data and target will be lost!", "Are you sure you want to reset distance walked?") {
+            alert("Distance walked and target will be lost!", "Are you sure you want to reset distance data?") {
                 positiveButton("Yes, I'm sure") {
                     // Reset all distance variables
                     distanceWalked = 0
@@ -354,6 +340,7 @@ class MainActivity : AppCompatActivity() {
                     walkingTarget = null
                     walkingTargetWithUnit = ""
                     progressBarWalkingTarget.progress = 0
+                    progressBarWalkingTarget.visibility = View.GONE
                     textViewProgressWalkingTarget.text = ""
                 }
                 negativeButton("No, abort") { }
@@ -483,11 +470,11 @@ class MainActivity : AppCompatActivity() {
                         // User not yet reached target
                         if (walkingTargetProgress != distanceWalked) {
                             // Total distance walked different from target progress, so show separately
-                            textViewProgressWalkingTarget.text = "${walkingTargetProgressWithUnit} walked of $walkingTargetWithUnit target!\n" +
+                            textViewProgressWalkingTarget.text = "$walkingTargetProgressWithUnit walked of $walkingTargetWithUnit target!\n" +
                                     "$distanceWalkedWithUnit total walked while playing Songle!"
                         } else {
                             // Total distance and target progress are the same, so only show target progress
-                            textViewProgressWalkingTarget.text = "${walkingTargetProgressWithUnit} walked of $walkingTargetWithUnit target!"
+                            textViewProgressWalkingTarget.text = "$walkingTargetProgressWithUnit walked of $walkingTargetWithUnit target!"
                         }
                     } else {
                         // User has reached target so show target reached message

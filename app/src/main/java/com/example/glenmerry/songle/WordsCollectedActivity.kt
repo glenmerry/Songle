@@ -1,24 +1,16 @@
 package com.example.glenmerry.songle
 
 import android.app.Activity
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.net.ConnectivityManager
 import android.os.Bundle
-import android.support.design.widget.Snackbar
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import android.text.InputType
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.EditText
-import kotlinx.android.synthetic.main.activity_song_detail.*
 import kotlinx.android.synthetic.main.activity_words_found.*
-import org.jetbrains.anko.activityUiThread
-import org.jetbrains.anko.doAsync
-import java.net.URL
 
 class WordsCollectedActivity : AppCompatActivity() {
 

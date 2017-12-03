@@ -16,6 +16,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.TextView
 import kotlinx.android.synthetic.main.activity_song_detail.*
+import kotlinx.android.synthetic.main.titlebar.view.*
 import org.jetbrains.anko.activityUiThread
 import org.jetbrains.anko.doAsync
 import org.jetbrains.anko.toast
@@ -46,9 +47,9 @@ class SongDetailActivity : AppCompatActivity() {
             title = "${song.artist} - ${song.title}"
             supportActionBar!!.setDisplayShowCustomEnabled(true)
             supportActionBar!!.setDisplayShowTitleEnabled(false)
-            val inflator = LayoutInflater.from(this)
-            val v = inflator.inflate(R.layout.titlebar, null)
-            (v.findViewById(R.id.title) as TextView).text = this.title
+            val inflater = LayoutInflater.from(this)
+            val v = inflater.inflate(R.layout.titlebar, null)
+            (v.title as TextView).text = this.title
             supportActionBar!!.customView = v
         }
 
