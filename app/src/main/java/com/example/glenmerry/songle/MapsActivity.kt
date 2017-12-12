@@ -810,7 +810,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                 // Return to Main Activity, since unlocked variable is set and returned
                 // Main Activity will get new song index and re-launch Maps Activity
                 onBackPressed()
-                onBackPressed()
             }
         } else {
             // No song index, return to Main Activity for index to be found

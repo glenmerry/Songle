@@ -12,14 +12,15 @@ class HelpActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_help)
 
-        textViewHelp.text = Html.fromHtml("<b>What is Songle?</b><br/><br /><small>" +
+        textViewHelp.text = Html.fromHtml("<b>What is Songle?</b><br/><br/><small>" +
                 "Songle is a location-based puzzle game where you can walk through your favourite songs! " +
                 "Collect words from well-known lyrics in order to guess the song, while exploring your local area!<br/><br/>" +
                 "<b></small>How do I play?<br/><br/><small></b>" +
                 "Tap the 'Play' button to enter the map view. You will see placemarks which represent the words on the map, " +
                 "once you're within 10 metres of one, collect it, by" +
                 " tapping the 'Collect' button at the bottom of the screen.<br/><br/>" +
-                "<b></small>What difficulty should I choose?<br/><br/><small></b>Well that's up to you, but here's what they mean:<br/><br/>" +
+                "<b></small>What difficulty should I choose?<br/><br/><small></b>" +
+                "Well that's up to you, but here's what they mean:<br/><br/>" +
                 "<b>Beginner:</b><br/>Words classified as boring, not boring, interesting or very interesting<br/>All words are displayed<br/><br/>" +
                 "<b>Easy:</b><br/>Words classified as boring, not boring or interesting<br/>All words are displayed<br/><br/><b>" +
                 "Medium:</b><br/>Words classified as boring, not boring or interesting<br/>Only 75% of words are displayed<br/><br/><b>" +
