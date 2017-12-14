@@ -38,7 +38,10 @@ import com.google.android.gms.maps.model.*
 import com.google.maps.android.data.kml.KmlContainer
 import com.google.maps.android.data.kml.KmlLayer
 import com.google.maps.android.data.kml.KmlPoint
-import org.jetbrains.anko.*
+import org.jetbrains.anko.activityUiThread
+import org.jetbrains.anko.alert
+import org.jetbrains.anko.doAsync
+import org.jetbrains.anko.progressDialog
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.math.BigDecimal
@@ -84,7 +87,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
         songToPlayIndexString = intent.extras.getString("songToPlay")
 
         if (songToPlayIndexString != null) {
-            toast("Playing song: ${songs[songToPlayIndexString!!.toInt() - 1].title}")
+            println("Playing song: ${songs[songToPlayIndexString!!.toInt() - 1].title}")
         } else {
             // If no song index, return to Main Activity
             onBackPressed()
@@ -181,7 +184,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback, GoogleApiClient.Co
                     guessCount = 0
                     skip = true
                     onBackPressed()
-                    toast("Skipped song ${songs[songToPlayIndexString!!.toInt() - 1].title}")
+                    println("Skipped song ${songs[songToPlayIndexString!!.toInt() - 1].title}")
                 }
             }
             negativeButton("No thanks") {}
